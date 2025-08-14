@@ -7,10 +7,10 @@ import cors from 'cors';
 import { Connectdb } from './config/db.js';
 // API routes
 import userRoutes from './routes/userRoutes.js';
-import membersRoutes from './routes/membersRoutes.js';
+import memberRoutes from './routes/memberRoutes.js';
 import roomsRoutes from './routes/roomsRoutes.js';
 import sessionRoutes from './routes/sessionRoutes.js';
-import attendenceRoutes from './routes/attendenceRoutes.js';
+import attendanceRoutes from './routes/attendanceRoutes.js';
 
 dotenv.config();
 const app = express();
@@ -26,10 +26,10 @@ app.use(express.json());
 
 
 app.use('/api/users', userRoutes);
-app.use('/api/members', membersRoutes);
+app.use('/api/members', memberRoutes);
 app.use('/api/rooms', roomsRoutes);
 app.use('/api/sessions', sessionRoutes);
-app.use('/api/attendence', attendenceRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
 
 if(process.env.NODE_ENV === "production"){
