@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Calendar, Clock, MapPin, Users, Plus } from 'lucide-react'
 
-const CreateSessionModal = ({ isOpen, onClose, onCreateSession }) => {
+const CreateSessionModal = ({ isOpen, onClose, onCreateSession, editingSession, isEditing = false }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -19,6 +19,35 @@ const CreateSessionModal = ({ isOpen, onClose, onCreateSession }) => {
 
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
+
+  // Populate form data when editing
+  useEffect(() => {
+    if (isEditing && editingSession) {
+      const sessionDate = new Date(editingSession.date)
+      const formattedDate = sessionDate.toISOString().split('T')[0]
+      
+      setFormData({
+        title: editingSession.title || '',
+        description: editingSession.description || '',
+        date: formattedDate,
+        startTime: editingSession.startTime || '',
+        endTime: editingSession.endTime || '',
+        location: editingSession.location || '',
+        type: editingSession.type || 'lecture'
+      })
+    } else {
+      // Reset form for creating new session
+      setFormData({
+        title: '',
+        description: '',
+        date: '',
+        startTime: '',
+        endTime: '',
+        location: '',
+        type: 'lecture'
+      })
+    }
+  }, [isEditing, editingSession, isOpen])
 
   const sessionTypes = [
     { value: 'lecture', label: 'Lecture', icon: '📚' },
@@ -139,7 +168,7 @@ const CreateSessionModal = ({ isOpen, onClose, onCreateSession }) => {
             <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
               <Plus className="h-4 w-4 text-white" />
             </div>
-            <span>Create New Session</span>
+            <span>{isEditing ? 'Edit Session' : 'Create New Session'}</span>
           </DialogTitle>
           <DialogDescription>
             Set up a new attendance session for your event. Fill in the details below.
@@ -288,7 +317,7 @@ const CreateSessionModal = ({ isOpen, onClose, onCreateSession }) => {
               className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
               disabled={loading}
             >
-              {loading ? 'Creating...' : 'Create Session'}
+              {loading ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update Session' : 'Create Session')}
             </Button>
           </div>
         </form>

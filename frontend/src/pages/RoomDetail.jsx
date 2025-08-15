@@ -32,6 +32,8 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
   const [attendanceData, setAttendanceData] = useState([])
   const [loading, setLoading] = useState(true)
   const [isCreateSessionModalOpen, setIsCreateSessionModalOpen] = useState(false)
+  const [isEditSessionModalOpen, setIsEditSessionModalOpen] = useState(false)
+  const [editingSession, setEditingSession] = useState(null)
   const [isUploadMembersModalOpen, setIsUploadMembersModalOpen] = useState(false)
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false)
   const [showMembersSection, setShowMembersSection] = useState(false)
@@ -197,6 +199,37 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
         console.error('Error deleting session:', error)
         alert('Error deleting session')
       }
+    }
+  }
+
+  const handleEditSession = (session) => {
+    setEditingSession(session)
+    setIsEditSessionModalOpen(true)
+  }
+
+  const handleUpdateSession = async (sessionData) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/sessions/${editingSession._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(sessionData),
+      })
+
+      if (response.ok) {
+        fetchSessions()
+        setIsEditSessionModalOpen(false)
+        setEditingSession(null)
+        alert('Session updated successfully')
+      } else {
+        alert('Failed to update session')
+      }
+    } catch (error) {
+      console.error('Error updating session:', error)
+      alert('Error updating session')
     }
   }
 
@@ -459,7 +492,10 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation()
+                          handleEditSession(session)
+                        }}>
                           <Edit className="h-4 w-4 mr-2" />
                           Edit Session
                         </DropdownMenuItem>
@@ -665,6 +701,17 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
         isOpen={isCreateSessionModalOpen}
         onClose={() => setIsCreateSessionModalOpen(false)}
         onCreateSession={handleCreateSession}
+      />
+      
+      <CreateSessionModal 
+        isOpen={isEditSessionModalOpen}
+        onClose={() => {
+          setIsEditSessionModalOpen(false)
+          setEditingSession(null)
+        }}
+        onCreateSession={handleUpdateSession}
+        editingSession={editingSession}
+        isEditing={true}
       />
       
       <UploadMembersModal 
