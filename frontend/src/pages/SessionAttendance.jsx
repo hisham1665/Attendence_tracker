@@ -75,6 +75,35 @@ const SessionAttendance = ({ session, room, onBack }) => {
   }
 
   const toggleAttendance = async (memberId, status) => {
+    // Helper function to get member ID consistently
+    const getMemberId = (attendance) => {
+      if (typeof attendance.member === 'object' && attendance.member._id) {
+        return attendance.member._id  // Extract ID from populated object
+      }
+      return attendance.member        // Return ID directly if it's a string
+    }
+
+    // Optimistic update
+    setAttendance(prevAttendance => {
+      const existingIndex = prevAttendance.findIndex(a => getMemberId(a) === memberId)
+      
+      if (existingIndex >= 0) {
+        // Update existing record
+        const updated = [...prevAttendance]
+        updated[existingIndex] = { ...updated[existingIndex], status }
+        return updated
+      } else {
+        // Add new record
+        return [...prevAttendance, {
+          _id: `temp_${Date.now()}`,
+          member: memberId,
+          session: session._id,
+          status,
+          timestamp: new Date().toISOString()
+        }]
+      }
+    })
+
     try {
       const token = localStorage.getItem('token')
       const response = await fetch('/api/attendance', {
@@ -86,19 +115,23 @@ const SessionAttendance = ({ session, room, onBack }) => {
         body: JSON.stringify({
           member: memberId,
           session: session._id,
-          status: status,
-          timestamp: new Date().toISOString()
+          status: status
         }),
       })
       
       if (response.ok) {
-        fetchAttendance()
+        // Replace optimistic update with real data
+        await fetchAttendance()
       } else {
+        // Revert optimistic update on error
+        await fetchAttendance()
         const errorData = await response.json()
         console.error('Failed to update attendance:', errorData.message)
         alert('Failed to update attendance: ' + errorData.message)
       }
     } catch (error) {
+      // Revert optimistic update on error
+      await fetchAttendance()
       console.error('Error updating attendance:', error)
       alert('Network error. Please try again.')
     }
@@ -133,8 +166,16 @@ const SessionAttendance = ({ session, room, onBack }) => {
   }
 
   // Combine members with their attendance status
+  // Helper function to get member ID consistently (same as in toggleAttendance)
+  const getMemberId = (attendance) => {
+    if (typeof attendance.member === 'object' && attendance.member._id) {
+      return attendance.member._id  // Extract ID from populated object
+    }
+    return attendance.member        // Return ID directly if it's a string
+  }
+
   const membersWithAttendance = members.map(member => {
-    const memberAttendance = attendance.find(a => a.member === member._id)
+    const memberAttendance = attendance.find(a => getMemberId(a) === member._id)
     return {
       ...member,
       attendanceStatus: memberAttendance?.status || 'absent',
@@ -160,9 +201,7 @@ const SessionAttendance = ({ session, room, onBack }) => {
   const stats = {
     total: members.length,
     present: membersWithAttendance.filter(m => m.attendanceStatus === 'present').length,
-    absent: membersWithAttendance.filter(m => m.attendanceStatus === 'absent').length,
-    late: membersWithAttendance.filter(m => m.attendanceStatus === 'late').length,
-    excused: membersWithAttendance.filter(m => m.attendanceStatus === 'excused').length
+    absent: membersWithAttendance.filter(m => m.attendanceStatus === 'absent').length
   }
 
   const attendanceRate = stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0
@@ -188,9 +227,7 @@ const SessionAttendance = ({ session, room, onBack }) => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'present': return 'bg-green-500 text-white'
-      case 'late': return 'bg-yellow-500 text-white'
       case 'absent': return 'bg-red-500 text-white'
-      case 'excused': return 'bg-blue-500 text-white'
       default: return 'bg-gray-500 text-white'
     }
   }
@@ -198,9 +235,7 @@ const SessionAttendance = ({ session, room, onBack }) => {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'present': return <CheckCircle className="h-4 w-4" />
-      case 'late': return <Clock className="h-4 w-4" />
       case 'absent': return <XCircle className="h-4 w-4" />
-      case 'excused': return <UserCheck className="h-4 w-4" />
       default: return <UserX className="h-4 w-4" />
     }
   }
@@ -264,7 +299,7 @@ const SessionAttendance = ({ session, room, onBack }) => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="border-2 border-blue-200 dark:border-blue-800">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -297,18 +332,6 @@ const SessionAttendance = ({ session, room, onBack }) => {
                   <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.absent}</p>
                 </div>
                 <UserX className="h-8 w-8 text-red-600 dark:text-red-400" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-2 border-yellow-200 dark:border-yellow-800">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Late</p>
-                  <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.late}</p>
-                </div>
-                <Clock className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
               </div>
             </CardContent>
           </Card>
@@ -356,12 +379,6 @@ const SessionAttendance = ({ session, room, onBack }) => {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setAttendanceFilter('absent')}>
                 Absent Only
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setAttendanceFilter('late')}>
-                Late Only
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setAttendanceFilter('excused')}>
-                Excused Only
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -433,33 +450,21 @@ const SessionAttendance = ({ session, room, onBack }) => {
                         size="sm"
                         variant={member.attendanceStatus === 'present' ? 'default' : 'outline'}
                         onClick={() => toggleAttendance(member._id, 'present')}
-                        className={member.attendanceStatus === 'present' ? 'bg-green-600 hover:bg-green-700' : ''}
+                        className={`flex items-center gap-2 ${member.attendanceStatus === 'present' ? 'bg-green-600 hover:bg-green-700 text-white' : 'border-green-200 text-green-600 hover:bg-green-50'}`}
+                        disabled={loading}
                       >
+                        <CheckCircle className="h-4 w-4" />
                         Present
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={member.attendanceStatus === 'late' ? 'default' : 'outline'}
-                        onClick={() => toggleAttendance(member._id, 'late')}
-                        className={member.attendanceStatus === 'late' ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
-                      >
-                        Late
                       </Button>
                       <Button
                         size="sm"
                         variant={member.attendanceStatus === 'absent' ? 'default' : 'outline'}
                         onClick={() => toggleAttendance(member._id, 'absent')}
-                        className={member.attendanceStatus === 'absent' ? 'bg-red-600 hover:bg-red-700' : ''}
+                        className={`flex items-center gap-2 ${member.attendanceStatus === 'absent' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-red-200 text-red-600 hover:bg-red-50'}`}
+                        disabled={loading}
                       >
+                        <XCircle className="h-4 w-4" />
                         Absent
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={member.attendanceStatus === 'excused' ? 'default' : 'outline'}
-                        onClick={() => toggleAttendance(member._id, 'excused')}
-                        className={member.attendanceStatus === 'excused' ? 'bg-blue-600 hover:bg-blue-700' : ''}
-                      >
-                        Excused
                       </Button>
                     </div>
                   </div>

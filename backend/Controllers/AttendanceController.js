@@ -41,7 +41,9 @@ export const getAttendanceById = async (req, res) => {
 // Create or update attendance record
 export const markAttendance = async (req, res) => {
   try {
-    const { member, session, status, timestamp } = req.body
+    const { member, session, status } = req.body
+    
+    console.log('Marking attendance:', { member, session, status })
     
     // Check if attendance record already exists
     let attendance = await AttendenceModel.findOne({ member, session })
@@ -49,37 +51,28 @@ export const markAttendance = async (req, res) => {
     if (attendance) {
       // Update existing record
       attendance.status = status
-      attendance.timestamp = timestamp || new Date()
-      
-      // Update check-in/check-out times based on status
-      if (status === 'present' || status === 'late') {
-        if (!attendance.checkInTime) {
-          attendance.checkInTime = timestamp || new Date()
-        }
-      } else if (status === 'absent') {
-        attendance.checkInTime = null
-        attendance.checkOutTime = null
-      }
-      
+      attendance.timestamp = new Date()
       await attendance.save()
+      console.log('Updated existing attendance:', attendance._id)
     } else {
       // Create new record
       attendance = new AttendenceModel({
         member,
         session,
         status,
-        timestamp: timestamp || new Date(),
-        checkInTime: (status === 'present' || status === 'late') ? (timestamp || new Date()) : null
+        timestamp: new Date()
       })
-      
       await attendance.save()
+      console.log('Created new attendance:', attendance._id)
     }
     
+    // Populate the response
     await attendance.populate('member', 'name email phone department studentid')
-    await attendance.populate('session', 'title date')
+    await attendance.populate('session', 'name date')
     
     res.status(201).json(attendance)
   } catch (error) {
+    console.error('Error marking attendance:', error)
     res.status(400).json({ message: error.message })
   }
 }

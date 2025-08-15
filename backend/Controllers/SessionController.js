@@ -3,7 +3,11 @@ import Session from '../models/SessionModel.js';
 // Create a new session
 export const createSession = async (req, res) => {
   try {
-    const session = new Session(req.body);
+    const sessionData = {
+      ...req.body,
+      user: req.user._id // Automatically assign user from JWT
+    };
+    const session = new Session(sessionData);
     await session.save();
     res.status(201).json(session);
   } catch (error) {
@@ -14,7 +18,19 @@ export const createSession = async (req, res) => {
 // Get all sessions
 export const getAllSessions = async (req, res) => {
   try {
-    const sessions = await Session.find();
+    const { room } = req.query;
+    const query = {};
+    
+    // Filter by room if provided
+    if (room) query.room = room;
+    
+    // Only get sessions for the authenticated user
+    query.user = req.user._id;
+    
+    const sessions = await Session.find(query)
+      .populate('room', 'name description')
+      .sort({ date: -1 });
+    
     res.json(sessions);
   } catch (error) {
     res.status(500).json({ error: error.message });
