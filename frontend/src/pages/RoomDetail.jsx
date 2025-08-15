@@ -235,9 +235,12 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
     }
   }
 
-  const filteredSessions = sessions.filter(session =>
-    (session.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredSessions = sessions.filter(session => {
+    const title = (session.title || '').toLowerCase()
+    const name = (session.name || '').toLowerCase()
+    const searchLower = searchTerm.toLowerCase()
+    return title.includes(searchLower) || name.includes(searchLower)
+  })
 
   // Add attendance count to sessions
   const sessionsWithAttendance = filteredSessions.map(session => {
