@@ -4,17 +4,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Calendar, Clock, MapPin, Users, Plus } from 'lucide-react'
+import { Calendar, Plus } from 'lucide-react'
 
 const CreateSessionModal = ({ isOpen, onClose, onCreateSession, editingSession, isEditing = false }) => {
   const [formData, setFormData] = useState({
     title: '',
-    description: '',
-    date: '',
-    startTime: '',
-    endTime: '',
-    location: '',
-    type: 'lecture'
+    date: ''
   })
 
   const [loading, setLoading] = useState(false)
@@ -28,35 +23,16 @@ const CreateSessionModal = ({ isOpen, onClose, onCreateSession, editingSession, 
       
       setFormData({
         title: editingSession.title || '',
-        description: editingSession.description || '',
-        date: formattedDate,
-        startTime: editingSession.startTime || '',
-        endTime: editingSession.endTime || '',
-        location: editingSession.location || '',
-        type: editingSession.type || 'lecture'
+        date: formattedDate
       })
     } else {
       // Reset form for creating new session
       setFormData({
         title: '',
-        description: '',
-        date: '',
-        startTime: '',
-        endTime: '',
-        location: '',
-        type: 'lecture'
+        date: ''
       })
     }
   }, [isEditing, editingSession, isOpen])
-
-  const sessionTypes = [
-    { value: 'lecture', label: 'Lecture', icon: '📚' },
-    { value: 'workshop', label: 'Workshop', icon: '🔧' },
-    { value: 'meeting', label: 'Meeting', icon: '🤝' },
-    { value: 'seminar', label: 'Seminar', icon: '🎓' },
-    { value: 'training', label: 'Training', icon: '💪' },
-    { value: 'conference', label: 'Conference', icon: '🎤' }
-  ]
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -85,18 +61,6 @@ const CreateSessionModal = ({ isOpen, onClose, onCreateSession, editingSession, 
       newErrors.date = 'Date is required'
     }
     
-    if (!formData.startTime) {
-      newErrors.startTime = 'Start time is required'
-    }
-    
-    if (!formData.endTime) {
-      newErrors.endTime = 'End time is required'
-    }
-    
-    if (formData.startTime && formData.endTime && formData.startTime >= formData.endTime) {
-      newErrors.endTime = 'End time must be after start time'
-    }
-    
     return newErrors
   }
 
@@ -113,14 +77,9 @@ const CreateSessionModal = ({ isOpen, onClose, onCreateSession, editingSession, 
     
     try {
       // Combine date and time
-      const sessionDateTime = new Date(`${formData.date}T${formData.startTime}`)
-      const endDateTime = new Date(`${formData.date}T${formData.endTime}`)
-      
       const sessionData = {
-        ...formData,
-        date: sessionDateTime.toISOString(),
-        endTime: endDateTime.toISOString(),
-        duration: Math.round((endDateTime - sessionDateTime) / (1000 * 60)) // duration in minutes
+        title: formData.title,
+        date: formData.date
       }
       
       await onCreateSession(sessionData)
@@ -128,12 +87,7 @@ const CreateSessionModal = ({ isOpen, onClose, onCreateSession, editingSession, 
       // Reset form
       setFormData({
         title: '',
-        description: '',
-        date: '',
-        startTime: '',
-        endTime: '',
-        location: '',
-        type: 'lecture'
+        date: ''
       })
       setErrors({})
     } catch (error) {
@@ -193,33 +147,6 @@ const CreateSessionModal = ({ isOpen, onClose, onCreateSession, editingSession, 
             {errors.title && <p className="text-sm text-red-500">{errors.title}</p>}
           </div>
 
-          {/* Session Type */}
-          <div className="space-y-3">
-            <Label className="flex items-center space-x-2">
-              <Users className="h-4 w-4" />
-              <span>Session Type</span>
-            </Label>
-            <div className="grid grid-cols-3 gap-2">
-              {sessionTypes.map((type) => (
-                <button
-                  key={type.value}
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, type: type.value }))}
-                  className={`p-3 rounded-lg border-2 transition-all duration-200 ${
-                    formData.type === type.value
-                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                      : 'border-slate-200 dark:border-slate-700 hover:border-purple-300'
-                  }`}
-                >
-                  <div className="text-center space-y-1">
-                    <div className="text-lg">{type.icon}</div>
-                    <div className="text-xs font-medium">{type.label}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Date and Time */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
@@ -238,67 +165,6 @@ const CreateSessionModal = ({ isOpen, onClose, onCreateSession, editingSession, 
               />
               {errors.date && <p className="text-sm text-red-500">{errors.date}</p>}
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="startTime" className="flex items-center space-x-2">
-                <Clock className="h-4 w-4" />
-                <span>Start *</span>
-              </Label>
-              <Input
-                id="startTime"
-                name="startTime"
-                type="time"
-                value={formData.startTime}
-                onChange={handleInputChange}
-                className={errors.startTime ? 'border-red-500' : ''}
-              />
-              {errors.startTime && <p className="text-sm text-red-500">{errors.startTime}</p>}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="endTime" className="flex items-center space-x-2">
-                <Clock className="h-4 w-4" />
-                <span>End *</span>
-              </Label>
-              <Input
-                id="endTime"
-                name="endTime"
-                type="time"
-                value={formData.endTime}
-                onChange={handleInputChange}
-                className={errors.endTime ? 'border-red-500' : ''}
-              />
-              {errors.endTime && <p className="text-sm text-red-500">{errors.endTime}</p>}
-            </div>
-          </div>
-
-          {/* Location */}
-          <div className="space-y-2">
-            <Label htmlFor="location" className="flex items-center space-x-2">
-              <MapPin className="h-4 w-4" />
-              <span>Location</span>
-            </Label>
-            <Input
-              id="location"
-              name="location"
-              placeholder="e.g., Conference Room A, Online, Building 123"
-              value={formData.location}
-              onChange={handleInputChange}
-            />
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              name="description"
-              placeholder="Brief description of the session content or agenda..."
-              value={formData.description}
-              onChange={handleInputChange}
-              rows={3}
-              className="resize-none"
-            />
           </div>
 
           {/* Action Buttons */}
