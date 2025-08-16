@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { useTheme } from '../contexts/ThemeContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -11,20 +10,16 @@ import {
   Users, 
   Calendar, 
   Clock,
-  Settings,
-  LogOut,
-  Sun,
-  Moon,
   MoreHorizontal,
   Edit,
   Trash2
 } from 'lucide-react'
 import CreateRoomModal from '../components/CreateRoomModal'
+import Navbar from '../components/Navbar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 const Dashboard = ({ onRoomSelect }) => {
-  const { user, logout } = useAuth()
-  const { darkMode, toggleTheme } = useTheme()
+  const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [rooms, setRooms] = useState([])
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -104,59 +99,12 @@ const Dashboard = ({ onRoomSelect }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-purple-900/20 dark:to-slate-900 transition-all duration-500">
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
-          <div className="space-y-2">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl">
-                <Users className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
-                  Welcome back, {user?.name}! 👋
-                </h1>
-                <p className="text-slate-600 dark:text-slate-300">
-                  Manage your event rooms and track attendance
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleTheme}
-              className="border-2 hover:scale-105 transition-transform duration-200"
-            >
-              {darkMode ? (
-                <Sun className="h-4 w-4 text-yellow-500" />
-              ) : (
-                <Moon className="h-4 w-4 text-purple-600" />
-              )}
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-2"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={logout}
-              className="border-2 text-red-600 border-red-200 hover:bg-red-50"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
-          </div>
-        </div>
+        <Navbar 
+          title="Dashboard" 
+          subtitle="Manage your event rooms and track attendance" 
+        />
+      <div className="max-w-7xl mx-auto p-6 space">
+        {/* Navbar */}
 
         {/* Search and Create */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
@@ -180,7 +128,7 @@ const Dashboard = ({ onRoomSelect }) => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
           <Card className="border-2 border-blue-200 dark:border-blue-800">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -230,7 +178,7 @@ const Dashboard = ({ onRoomSelect }) => {
 
         {/* Rooms Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-5">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <Card key={i} className="animate-pulse">
                 <CardContent className="p-6">
@@ -242,7 +190,7 @@ const Dashboard = ({ onRoomSelect }) => {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
             {filteredRooms.map((room) => (
               <Card 
                 key={room._id} 

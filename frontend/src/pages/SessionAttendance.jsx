@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import Navbar from '@/components/Navbar'
 import { 
   ArrowLeft, 
   Search, 
@@ -242,6 +243,7 @@ const SessionAttendance = ({ session, room, onBack }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-purple-900/20 dark:to-slate-900 transition-all duration-500">
+      <Navbar subtitle="Session Attendance" />
       <div className="max-w-7xl mx-auto p-6 space-y-8">
         {/* Header */}
         <div className="flex items-start justify-between">
