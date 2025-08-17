@@ -37,13 +37,7 @@ const RoomsSchema = new mongoose.Schema({
             required: true,
             default: 'name'
         }
-    },
-    // Supported file formats for this room
-    supportedFormats: [{
-        type: String,
-        enum: ['csv', 'xlsx', 'xls', 'pdf'],
-        default: ['csv', 'xlsx']
-    }]
+    }
 }, {
     timestamps: true
 });

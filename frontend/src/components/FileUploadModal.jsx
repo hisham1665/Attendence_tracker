@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react'
+import * as XLSX from 'xlsx'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,7 +28,7 @@ const FileUploadModal = ({ isOpen, onClose, room, onUploadComplete }) => {
   const [errors, setErrors] = useState([])
   const [step, setStep] = useState('upload') // upload, mapping, preview, processing
 
-  const supportedFormats = room?.supportedFormats || ['csv', 'xlsx']
+  const supportedFormats = ['csv', 'xlsx']
   const roomFields = room?.fieldConfiguration?.fields || []
   const primaryField = room?.fieldConfiguration?.primaryField || 'name'
 
@@ -69,24 +70,63 @@ const FileUploadModal = ({ isOpen, onClose, room, onUploadComplete }) => {
           if (extension === 'csv') {
             const text = e.target.result
             const lines = text.split('\n').filter(line => line.trim())
+            if (lines.length === 0) {
+              reject(new Error('CSV file is empty'))
+              return
+            }
             headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
             data = lines.slice(1, 6).map(line => // Preview first 5 rows
               line.split(',').map(cell => cell.trim().replace(/"/g, ''))
             )
           } else if (extension === 'xlsx' || extension === 'xls') {
-            // For Excel files, we'll need to use a library like xlsx
-            // For now, show a placeholder
-            headers = ['Column 1', 'Column 2', 'Column 3']
-            data = [['Sample', 'Data', 'Preview']]
-          } else if (extension === 'pdf') {
-            // PDF parsing would require pdf-parse or similar
-            headers = ['Extracted Text']
-            data = [['PDF content will be processed...']]
+            // Parse Excel file
+            const workbook = XLSX.read(e.target.result, { type: 'array' })
+            const sheetName = workbook.SheetNames[0]
+            const worksheet = workbook.Sheets[sheetName]
+            
+            // Convert to array of arrays
+            const rawData = XLSX.utils.sheet_to_json(worksheet, { 
+              header: 1, 
+              defval: '',
+              raw: false 
+            })
+            
+            if (rawData.length === 0) {
+              reject(new Error('Excel file is empty'))
+              return
+            }
+            
+            headers = rawData[0].map(h => String(h || '').trim())
+            data = rawData.slice(1, 6).map(row => // Preview first 5 rows
+              row.map(cell => String(cell || '').trim())
+            )
           }
           
-          resolve({ headers, data })
+          // Filter out empty headers and corresponding columns
+          const validHeaders = []
+          const validData = []
+          
+          headers.forEach((header, index) => {
+            if (header && header.trim() !== '') {
+              validHeaders.push(header)
+              validData.push(data.map(row => row[index] || ''))
+            }
+          })
+          
+          // Transpose data back to rows
+          const transposedData = []
+          if (validData.length > 0) {
+            for (let i = 0; i < validData[0].length; i++) {
+              const row = validData.map(col => col[i] || '')
+              if (row.some(cell => cell && cell.trim() !== '')) {
+                transposedData.push(row)
+              }
+            }
+          }
+          
+          resolve({ headers: validHeaders, data: transposedData })
         } catch (error) {
-          reject(error)
+          reject(new Error(`Error parsing ${extension.toUpperCase()} file: ${error.message}`))
         }
       }
       
@@ -94,7 +134,7 @@ const FileUploadModal = ({ isOpen, onClose, room, onUploadComplete }) => {
       
       if (extension === 'csv') {
         reader.readAsText(file)
-      } else {
+      } else if (extension === 'xlsx' || extension === 'xls') {
         reader.readAsArrayBuffer(file)
       }
     })

@@ -22,7 +22,6 @@ const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
     ],
     primaryField: 'name'
   })
-  const [supportedFormats, setSupportedFormats] = useState(['csv', 'xlsx'])
   const [loading, setLoading] = useState(false)
 
   const fieldTypes = [
@@ -33,13 +32,6 @@ const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
     { value: 'date', label: 'Date' }
   ]
 
-  const fileFormats = [
-    { value: 'csv', label: 'CSV', icon: '📄' },
-    { value: 'xlsx', label: 'Excel (XLSX)', icon: '📊' },
-    { value: 'xls', label: 'Excel (XLS)', icon: '📊' },
-    { value: 'pdf', label: 'PDF', icon: '📋' }
-  ]
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -47,8 +39,7 @@ const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
     try {
       const roomData = {
         ...formData,
-        fieldConfiguration,
-        supportedFormats
+        fieldConfiguration
       }
 
       await onCreateRoom(roomData)
@@ -62,7 +53,6 @@ const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
         ],
         primaryField: 'name'
       })
-      setSupportedFormats(['csv', 'xlsx'])
       setCurrentStep('basic')
     } catch (error) {
       console.error('Error creating room:', error)
@@ -94,14 +84,6 @@ const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
     }))
   }
 
-  const toggleFormat = (format) => {
-    setSupportedFormats(prev => 
-      prev.includes(format) 
-        ? prev.filter(f => f !== format)
-        : [...prev, format]
-    )
-  }
-
   const handleClose = () => {
     setFormData({ title: '', description: '' })
     setFieldConfiguration({
@@ -111,7 +93,6 @@ const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
       ],
       primaryField: 'name'
     })
-    setSupportedFormats(['csv', 'xlsx'])
     setCurrentStep('basic')
     onClose()
   }
@@ -124,8 +105,6 @@ const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
         return fieldConfiguration.fields.length > 0 && 
                fieldConfiguration.fields.every(f => f.name.trim() !== '') &&
                fieldConfiguration.primaryField !== ''
-      case 'formats':
-        return supportedFormats.length > 0
       default:
         return true
     }
@@ -139,12 +118,12 @@ const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
             Create New Room
           </DialogTitle>
           <DialogDescription>
-            Set up your room with custom fields and file format support
+            Set up your room with custom fields. Supports CSV and Excel file uploads.
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={currentStep} onValueChange={setCurrentStep} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="basic" className="relative">
               Basic Info
               {isStepValid('basic') && <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></div>}
@@ -152,10 +131,6 @@ const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
             <TabsTrigger value="fields" className="relative">
               Fields Setup
               {isStepValid('fields') && <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></div>}
-            </TabsTrigger>
-            <TabsTrigger value="formats" className="relative">
-              File Formats
-              {isStepValid('formats') && <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></div>}
             </TabsTrigger>
           </TabsList>
 
@@ -294,63 +269,8 @@ const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }) => {
                   Previous
                 </Button>
                 <Button 
-                  type="button" 
-                  onClick={() => setCurrentStep('formats')}
-                  disabled={!isStepValid('fields')}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500"
-                >
-                  Next: File Formats
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="formats" className="space-y-4">
-              <div className="space-y-4">
-                <Label className="text-base font-semibold">Supported File Formats</Label>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  {fileFormats.map(format => (
-                    <div
-                      key={format.value}
-                      className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                        supportedFormats.includes(format.value)
-                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                          : 'border-gray-200 hover:border-purple-300'
-                      }`}
-                      onClick={() => toggleFormat(format.value)}
-                    >
-                      <div className="flex items-center space-x-2">
-                        <span className="text-lg">{format.icon}</span>
-                        <span className="font-medium">{format.label}</span>
-                        {supportedFormats.includes(format.value) && (
-                          <Badge variant="secondary" className="ml-auto">
-                            ✓
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
-                    <FileText className="h-4 w-4 inline mr-1" />
-                    Selected formats: {supportedFormats.length > 0 ? supportedFormats.join(', ').toUpperCase() : 'None'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex justify-between">
-                <Button 
-                  type="button" 
-                  variant="outline"
-                  onClick={() => setCurrentStep('fields')}
-                >
-                  Previous
-                </Button>
-                <Button 
                   type="submit" 
-                  disabled={loading || !isStepValid('formats')}
+                  disabled={loading || !isStepValid('fields')}
                   className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                 >
                   {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}

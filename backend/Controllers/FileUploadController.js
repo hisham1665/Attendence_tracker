@@ -27,11 +27,11 @@ const upload = multer({
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/pdf']
+    const allowedTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true)
     } else {
-      cb(new Error('Invalid file type. Only CSV, Excel, and PDF files are allowed.'))
+      cb(new Error('Invalid file type. Only CSV and Excel files are allowed.'))
     }
   }
 })
@@ -54,18 +54,35 @@ const parseExcel = (filePath) => {
     const workbook = xlsx.readFile(filePath)
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
-    const jsonData = xlsx.utils.sheet_to_json(worksheet)
-    return jsonData
+    
+    // Convert to JSON with header row as keys
+    const jsonData = xlsx.utils.sheet_to_json(worksheet, {
+      header: 1, // Use first row as header
+      defval: '', // Default value for empty cells
+      raw: false // Parse values as strings
+    })
+    
+    if (jsonData.length === 0) {
+      throw new Error('Excel file is empty')
+    }
+    
+    // Convert array of arrays to array of objects
+    const headers = jsonData[0].map(header => String(header).trim())
+    const data = jsonData.slice(1).map(row => {
+      const obj = {}
+      headers.forEach((header, index) => {
+        obj[header] = row[index] ? String(row[index]).trim() : ''
+      })
+      return obj
+    }).filter(row => {
+      // Filter out completely empty rows
+      return Object.values(row).some(value => value && value.trim() !== '')
+    })
+    
+    return data
   } catch (error) {
     throw new Error('Failed to parse Excel file: ' + error.message)
   }
-}
-
-// Parse PDF file (basic text extraction)
-const parsePDF = async (filePath) => {
-  // This would require a PDF parsing library like pdf-parse
-  // For now, return a placeholder
-  return [{ extractedText: 'PDF parsing not yet implemented' }]
 }
 
 // Upload and process members file
@@ -91,6 +108,7 @@ export const uploadMembersFile = async (req, res) => {
     let mapping
     try {
       mapping = JSON.parse(fieldMapping)
+      console.log('Field mapping:', mapping)
     } catch (error) {
       return res.status(400).json({ message: 'Invalid field mapping format' })
     }
@@ -102,21 +120,32 @@ export const uploadMembersFile = async (req, res) => {
     
     // Parse file based on extension
     try {
+      console.log(`Parsing ${fileExtension} file: ${req.file.originalname}`)
+      
       switch (fileExtension) {
         case '.csv':
           fileData = await parseCSV(filePath)
+          console.log(`CSV parsed successfully: ${fileData.length} rows`)
           break
         case '.xlsx':
         case '.xls':
           fileData = parseExcel(filePath)
-          break
-        case '.pdf':
-          fileData = await parsePDF(filePath)
+          console.log(`Excel parsed successfully: ${fileData.length} rows`)
           break
         default:
-          throw new Error('Unsupported file format')
+          throw new Error('Unsupported file format. Only CSV and Excel files are supported.')
       }
+      
+      // Log sample of parsed data for debugging
+      if (fileData.length > 0) {
+        console.log('Sample parsed data:', JSON.stringify(fileData[0], null, 2))
+        console.log('Available columns:', Object.keys(fileData[0]))
+      } else {
+        throw new Error('No data found in file')
+      }
+      
     } catch (parseError) {
+      console.error('Parse error:', parseError)
       // Clean up uploaded file
       fs.unlinkSync(filePath)
       return res.status(400).json({ message: 'Failed to parse file: ' + parseError.message })
@@ -125,6 +154,8 @@ export const uploadMembersFile = async (req, res) => {
     // Process and validate data
     const processedMembers = []
     const errors = []
+    
+    console.log(`Processing ${fileData.length} rows with mapping:`, mapping)
     
     for (let i = 0; i < fileData.length; i++) {
       const row = fileData[i]
@@ -162,6 +193,7 @@ export const uploadMembersFile = async (req, res) => {
         processedMembers.push(memberData)
         
       } catch (error) {
+        console.error(`Error processing row ${i + 1}:`, error.message, 'Row data:', row)
         errors.push({
           row: i + 1,
           error: error.message,
