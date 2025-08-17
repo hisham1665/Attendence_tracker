@@ -1,4 +1,6 @@
 import Room from '../models/RoomsModel.js';
+import Member from '../models/MembersModel.js';
+import Session from '../models/SessionModel.js';
 
 // Create a new room
 export const createRoom = async (req, res) => {
@@ -35,7 +37,22 @@ export const getAllRooms = async (req, res) => {
     const rooms = await Room.find({ createdBy: req.user._id })
       .populate('createdBy', 'name email')
       .sort({ createdAt: -1 });
-    res.json(rooms);
+
+    // Calculate member count and session count for each room
+    const roomsWithCounts = await Promise.all(
+      rooms.map(async (room) => {
+        const memberCount = await Member.countDocuments({ room: room._id });
+        const sessionCount = await Session.countDocuments({ room: room._id });
+        
+        return {
+          ...room.toObject(),
+          memberCount,
+          sessionCount
+        };
+      })
+    );
+
+    res.json(roomsWithCounts);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -101,8 +101,6 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
         // Filter out attendance records with null sessions
         const validAttendanceData = data.filter(attendance => attendance.session !== null)
         setAttendanceData(validAttendanceData)
-        console.log('All attendance data:', data)
-        console.log('Valid attendance data:', validAttendanceData)
       }
     } catch (error) {
       console.error('Error fetching attendance:', error)

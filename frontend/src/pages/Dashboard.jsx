@@ -13,6 +13,7 @@ import {
   Trash2
 } from 'lucide-react'
 import CreateRoomModal from '../components/CreateRoomModal'
+import EditRoomModal from '../components/EditRoomModal'
 import Navbar from '../components/Navbar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
@@ -21,6 +22,8 @@ const Dashboard = ({ onRoomSelect }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [rooms, setRooms] = useState([])
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [selectedRoomForEdit, setSelectedRoomForEdit] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -95,6 +98,33 @@ const Dashboard = ({ onRoomSelect }) => {
     }
   }
 
+  const handleEditRoom = (room) => {
+    setSelectedRoomForEdit(room)
+    setIsEditModalOpen(true)
+  }
+
+  const handleUpdateRoom = async (roomId, roomData) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/rooms/${roomId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(roomData),
+      })
+      
+      if (response.ok) {
+        fetchRooms() // Refresh the rooms list
+        setIsEditModalOpen(false)
+        setSelectedRoomForEdit(null)
+      }
+    } catch (error) {
+      console.error('Error updating room:', error)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-purple-900/20 dark:to-slate-900 transition-all duration-500">
         <Navbar 
@@ -126,7 +156,7 @@ const Dashboard = ({ onRoomSelect }) => {
         </div>
 
         {/* Total Rooms Display */}
-        <div className="flex justify-center mt-6 mb-2">
+        <div className="flex mt-6 mb-2">
           <div className="flex items-center space-x-3 text-center">
             <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             <span className="text-base sm:text-lg font-medium text-slate-700 dark:text-slate-300">
@@ -173,12 +203,20 @@ const Dashboard = ({ onRoomSelect }) => {
                     
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 sm:transition-opacity ml-2 flex-shrink-0">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="opacity-0 group-hover:opacity-100 sm:transition-opacity ml-2 flex-shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation()
+                          handleEditRoom(room)
+                        }}>
                           <Edit className="h-4 w-4 mr-2" />
                           Edit Room
                         </DropdownMenuItem>
@@ -219,6 +257,10 @@ const Dashboard = ({ onRoomSelect }) => {
                       variant="outline" 
                       size="sm" 
                       className="w-full sm:w-auto group-hover:bg-purple-50 group-hover:border-purple-300 dark:group-hover:bg-purple-900/20"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onRoomSelect(room)
+                      }}
                     >
                       View Details
                     </Button>
@@ -262,6 +304,16 @@ const Dashboard = ({ onRoomSelect }) => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreateRoom={handleCreateRoom}
+      />
+      
+      <EditRoomModal 
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false)
+          setSelectedRoomForEdit(null)
+        }}
+        onUpdateRoom={handleUpdateRoom}
+        room={selectedRoomForEdit}
       />
     </div>
   )
