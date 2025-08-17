@@ -7,6 +7,7 @@ import {
   updateMember,
   deleteMember
 } from '../Controllers/MemberController.js'
+import { uploadMiddleware, uploadMembersFile } from '../Controllers/FileUploadController.js'
 import authenticateToken from '../middleware/auth.js'
 
 const router = express.Router()
@@ -25,6 +26,9 @@ router.post('/', createMember)
 
 // POST /api/members/bulk - Bulk create members
 router.post('/bulk', bulkCreateMembers)
+
+// POST /api/members/upload - Upload and process file
+router.post('/upload', uploadMiddleware, uploadMembersFile)
 
 // PUT /api/members/:id - Update a member
 router.put('/:id', updateMember)

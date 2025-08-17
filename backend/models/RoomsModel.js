@@ -14,7 +14,36 @@ const RoomsSchema = new mongoose.Schema({
     description: {
         type: String,
         trim: true
-    }
+    },
+    // Dynamic field configuration for CSV/file uploads
+    fieldConfiguration: {
+        fields: [{
+            name: {
+                type: String,
+                required: true
+            },
+            type: {
+                type: String,
+                enum: ['text', 'email', 'phone', 'number', 'date'],
+                default: 'text'
+            },
+            required: {
+                type: Boolean,
+                default: false
+            }
+        }],
+        primaryField: {
+            type: String,
+            required: true,
+            default: 'name'
+        }
+    },
+    // Supported file formats for this room
+    supportedFormats: [{
+        type: String,
+        enum: ['csv', 'xlsx', 'xls', 'pdf'],
+        default: ['csv', 'xlsx']
+    }]
 }, {
     timestamps: true
 });

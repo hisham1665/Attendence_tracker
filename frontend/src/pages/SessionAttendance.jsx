@@ -35,6 +35,46 @@ const SessionAttendance = ({ session, room, onBack }) => {
   const [attendanceFilter, setAttendanceFilter] = useState('all')
   const [sessionData, setSessionData] = useState(session)
 
+  // Helper function to get field value from member
+  const getMemberFieldValue = (member, fieldName) => {
+    // Check dynamic fields first
+    if (member.dynamicFields && member.dynamicFields[fieldName]) {
+      return member.dynamicFields[fieldName]
+    }
+    // Fall back to legacy fields
+    return member[fieldName] || ''
+  }
+
+  // Helper function to get primary field value (main identifier)
+  const getMemberPrimaryValue = (member) => {
+    const primaryField = room?.fieldConfiguration?.primaryField || 'name'
+    const value = getMemberFieldValue(member, primaryField)
+    
+    // If primary field is empty, try to find any non-empty field as fallback
+    if (!value) {
+      const fields = room?.fieldConfiguration?.fields || [
+        { name: 'name' }, { name: 'email' }, { name: 'studentid' }, { name: 'phone' }
+      ]
+      
+      for (const field of fields) {
+        const fallbackValue = getMemberFieldValue(member, field.name)
+        if (fallbackValue) {
+          return fallbackValue
+        }
+      }
+      
+      return 'Unknown Member'
+    }
+    
+    return value
+  }
+
+  // Helper function to get all searchable field values
+  const getMemberSearchableValues = (member) => {
+    const fields = room?.fieldConfiguration?.fields || []
+    return fields.map(field => getMemberFieldValue(member, field.name)).filter(Boolean)
+  }
+
   useEffect(() => {
     fetchMembers()
     fetchAttendance()
@@ -173,16 +213,31 @@ const SessionAttendance = ({ session, room, onBack }) => {
   }
 
   const exportToCSV = () => {
-    const csvData = membersWithAttendance.map(member => ({
-      Name: member.name,
-      Email: member.email,
-      Phone: member.phone || '',
-      Department: member.department || '',
-      StudentId: member.studentid || '',
-      Status: member.attendanceStatus,
-      CheckInTime: member.checkInTime || '',
-      CheckOutTime: member.checkOutTime || ''
-    }))
+    const csvData = membersWithAttendance.map(member => {
+      const rowData = {}
+      
+      // Add dynamic fields based on room configuration
+      if (room?.fieldConfiguration?.fields) {
+        room.fieldConfiguration.fields.forEach(field => {
+          const fieldName = field.name.charAt(0).toUpperCase() + field.name.slice(1)
+          rowData[fieldName] = getMemberFieldValue(member, field.name)
+        })
+      } else {
+        // Fallback to legacy fields if no configuration
+        rowData.Name = getMemberFieldValue(member, 'name')
+        rowData.Email = getMemberFieldValue(member, 'email')
+        rowData.Phone = getMemberFieldValue(member, 'phone')
+        rowData.Department = getMemberFieldValue(member, 'department')
+        rowData.StudentId = getMemberFieldValue(member, 'studentid')
+      }
+      
+      // Add attendance specific fields
+      rowData.Status = member.attendanceStatus
+      rowData.CheckInTime = member.checkInTime || ''
+      rowData.CheckOutTime = member.checkOutTime || ''
+      
+      return rowData
+    })
 
     const csvContent = [
       Object.keys(csvData[0]).join(','),
@@ -222,9 +277,13 @@ const SessionAttendance = ({ session, room, onBack }) => {
 
   // Filter members based on search and attendance status
   const filteredMembers = membersWithAttendance.filter(member => {
-    const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (member.studentid && member.studentid.toLowerCase().includes(searchTerm.toLowerCase()))
+    // Get all searchable values from the member's dynamic fields
+    const searchableValues = getMemberSearchableValues(member)
+    const searchLower = searchTerm.toLowerCase()
+    
+    const matchesSearch = searchTerm === '' || searchableValues.some(value => 
+      value.toLowerCase().includes(searchLower)
+    )
     
     const matchesFilter = attendanceFilter === 'all' || 
                          member.attendanceStatus === attendanceFilter
@@ -498,7 +557,9 @@ const SessionAttendance = ({ session, room, onBack }) => {
                   >
                     <div className="flex-1 space-y-1">
                       <div className="flex items-center space-x-3">
-                        <h3 className="font-medium text-base sm:text-lg">{member.name}</h3>
+                        <h3 className="font-medium text-base sm:text-lg">
+                          {getMemberPrimaryValue(member)}
+                        </h3>
                         <Badge 
                           variant="outline" 
                           className={`${getStatusColor(member.attendanceStatus)} border-0`}
@@ -510,10 +571,37 @@ const SessionAttendance = ({ session, room, onBack }) => {
                         </Badge>
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-                        <span className="break-words">{member.email}</span>
-                        {member.phone && <span>{member.phone}</span>}
-                        {member.department && <span>{member.department}</span>}
-                        {member.studentid && <span>ID: {member.studentid}</span>}
+                        {room?.fieldConfiguration?.fields ? (
+                          // Display dynamic fields based on room configuration
+                          room.fieldConfiguration.fields
+                            .filter(field => field.name !== room.fieldConfiguration.primaryField) // Don't show primary field again
+                            .slice(0, 3) // Limit to first 3 additional fields
+                            .map(field => {
+                              const value = getMemberFieldValue(member, field.name)
+                              return value ? (
+                                <span key={field.name} className="break-words">
+                                  {field.name === 'email' ? value : 
+                                   field.name === 'phone' ? value :
+                                   field.name === 'studentid' ? `ID: ${value}` : 
+                                   value}
+                                </span>
+                              ) : null
+                            })
+                        ) : (
+                          // Fallback to legacy field display
+                          <>
+                            <span className="break-words">{getMemberFieldValue(member, 'email') || 'No email'}</span>
+                            {getMemberFieldValue(member, 'phone') && (
+                              <span>{getMemberFieldValue(member, 'phone')}</span>
+                            )}
+                            {getMemberFieldValue(member, 'department') && (
+                              <span>{getMemberFieldValue(member, 'department')}</span>
+                            )}
+                            {getMemberFieldValue(member, 'studentid') && (
+                              <span>ID: {getMemberFieldValue(member, 'studentid')}</span>
+                            )}
+                          </>
+                        )}
                       </div>
                       {(member.checkInTime || member.checkOutTime) && (
                         <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs text-slate-500">

@@ -22,7 +22,7 @@ import {
   MoreHorizontal
 } from 'lucide-react'
 import CreateSessionModal from '../components/CreateSessionModal'
-import UploadMembersModal from '../components/UploadMembersModal'
+import FileUploadModal from '../components/FileUploadModal'
 import Navbar from '../components/Navbar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
@@ -38,13 +38,27 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
   const [isUploadMembersModalOpen, setIsUploadMembersModalOpen] = useState(false)
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false)
   const [showMembersSection, setShowMembersSection] = useState(false)
-  const [newMember, setNewMember] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    department: '',
-    studentid: ''
-  })
+  const [newMember, setNewMember] = useState({})
+
+  // Initialize newMember state based on room field configuration
+  useEffect(() => {
+    if (room?.fieldConfiguration?.fields) {
+      const initialMember = {}
+      room.fieldConfiguration.fields.forEach(field => {
+        initialMember[field.name] = ''
+      })
+      setNewMember(initialMember)
+    } else {
+      // Fallback to legacy fields
+      setNewMember({
+        name: '',
+        email: '',
+        phone: '',
+        department: '',
+        studentid: ''
+      })
+    }
+  }, [room])
 
   useEffect(() => {
     fetchSessions()
@@ -154,27 +168,29 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
     }
   }
 
-  const handleUploadMembers = async (csvData) => {
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('/api/members/bulk', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          members: csvData,
-          room: room._id
-        }),
-      })
-      
-      if (response.ok) {
-        fetchMembers()
-        setIsUploadMembersModalOpen(false)
-      }
-    } catch (error) {
-      console.error('Error uploading members:', error)
+  // Helper function to get field value from member
+  const getMemberFieldValue = (member, fieldName) => {
+    // Check dynamic fields first
+    if (member.dynamicFields && member.dynamicFields[fieldName]) {
+      return member.dynamicFields[fieldName]
+    }
+    // Fall back to legacy fields
+    return member[fieldName] || '-'
+  }
+
+  // Helper function to get display name for field
+  const getFieldDisplayName = (fieldName) => {
+    return fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/([A-Z])/g, ' $1')
+  }
+
+  const handleUploadComplete = (result) => {
+    // Refresh members list after successful upload
+    fetchMembers()
+    setIsUploadMembersModalOpen(false)
+    
+    // Show success message
+    if (result.stats) {
+      alert(`Upload complete! ${result.stats.successful} members added successfully.${result.stats.errors > 0 ? ` ${result.stats.errors} rows had errors.` : ''}`)
     }
   }
 
@@ -242,21 +258,38 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          ...newMember,
-          room: room._id
+          dynamicFields: newMember,
+          room: room._id,
+          // Also include legacy fields for backward compatibility
+          name: newMember[room?.fieldConfiguration?.primaryField] || newMember.name || '',
+          email: newMember.email || '',
+          phone: newMember.phone || '',
+          department: newMember.department || '',
+          studentid: newMember.studentid || ''
         }),
       })
 
       if (response.ok) {
         fetchMembers()
         setIsAddMemberModalOpen(false)
-        setNewMember({
-          name: '',
-          email: '',
-          phone: '',
-          department: '',
-          studentid: ''
-        })
+        
+        // Reset newMember based on current room configuration
+        if (room?.fieldConfiguration?.fields) {
+          const resetMember = {}
+          room.fieldConfiguration.fields.forEach(field => {
+            resetMember[field.name] = ''
+          })
+          setNewMember(resetMember)
+        } else {
+          setNewMember({
+            name: '',
+            email: '',
+            phone: '',
+            department: '',
+            studentid: ''
+          })
+        }
+        
         alert('Member added successfully')
       } else {
         alert('Failed to add member')
@@ -641,37 +674,68 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[250px] font-semibold">Name</TableHead>
-                      <TableHead className="font-semibold">Email</TableHead>
-                      <TableHead className="font-semibold">Phone</TableHead>
-                      <TableHead className="font-semibold">Department</TableHead>
-                      <TableHead className="font-semibold">Student ID</TableHead>
+                      {room.fieldConfiguration?.fields?.map((field) => (
+                        <TableHead key={field.name} className={`font-semibold ${field.name === room.fieldConfiguration.primaryField ? 'w-[250px]' : ''}`}>
+                          {getFieldDisplayName(field.name)}
+                          {field.required && <span className="text-red-500 ml-1">*</span>}
+                          {field.name === room.fieldConfiguration.primaryField && (
+                            <Badge variant="outline" className="ml-2 text-xs">Primary</Badge>
+                          )}
+                        </TableHead>
+                      )) || (
+                        // Fallback to legacy headers if no field configuration
+                        <>
+                          <TableHead className="w-[250px] font-semibold">Name</TableHead>
+                          <TableHead className="font-semibold">Email</TableHead>
+                          <TableHead className="font-semibold">Phone</TableHead>
+                          <TableHead className="font-semibold">Department</TableHead>
+                          <TableHead className="font-semibold">Student ID</TableHead>
+                        </>
+                      )}
                       <TableHead className="text-right font-semibold">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {members.map((member) => (
                       <TableRow key={member._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                        <TableCell className="font-medium">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                              {member.name.charAt(0).toUpperCase()}
-                            </div>
-                            <span className="text-slate-800 dark:text-white">{member.name}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-slate-600 dark:text-slate-400">
-                          {member.email}
-                        </TableCell>
-                        <TableCell className="text-slate-600 dark:text-slate-400">
-                          {member.phone || '-'}
-                        </TableCell>
-                        <TableCell className="text-slate-600 dark:text-slate-400">
-                          {member.department || '-'}
-                        </TableCell>
-                        <TableCell className="text-slate-600 dark:text-slate-400">
-                          {member.studentid || '-'}
-                        </TableCell>
+                        {room.fieldConfiguration?.fields?.map((field) => (
+                          <TableCell key={field.name} className={field.name === room.fieldConfiguration.primaryField ? "font-medium" : "text-slate-600 dark:text-slate-400"}>
+                            {field.name === room.fieldConfiguration.primaryField ? (
+                              <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                  {getMemberFieldValue(member, field.name).charAt(0).toUpperCase()}
+                                </div>
+                                <span className="text-slate-800 dark:text-white">{getMemberFieldValue(member, field.name)}</span>
+                              </div>
+                            ) : (
+                              getMemberFieldValue(member, field.name)
+                            )}
+                          </TableCell>
+                        )) || (
+                          // Fallback to legacy display if no field configuration
+                          <>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                  {member.name?.charAt(0).toUpperCase() || 'M'}
+                                </div>
+                                <span className="text-slate-800 dark:text-white">{member.name || 'Unknown'}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-slate-600 dark:text-slate-400">
+                              {member.email || '-'}
+                            </TableCell>
+                            <TableCell className="text-slate-600 dark:text-slate-400">
+                              {member.phone || '-'}
+                            </TableCell>
+                            <TableCell className="text-slate-600 dark:text-slate-400">
+                              {member.department || '-'}
+                            </TableCell>
+                            <TableCell className="text-slate-600 dark:text-slate-400">
+                              {member.studentid || '-'}
+                            </TableCell>
+                          </>
+                        )}
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -718,10 +782,11 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
         isEditing={true}
       />
       
-      <UploadMembersModal 
+      <FileUploadModal 
         isOpen={isUploadMembersModalOpen}
         onClose={() => setIsUploadMembersModalOpen(false)}
-        onUploadMembers={handleUploadMembers}
+        room={room}
+        onUploadComplete={handleUploadComplete}
       />
       
       {/* Add Single Member Modal */}
@@ -734,67 +799,98 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Name
-              </Label>
-              <Input
-                id="name"
-                placeholder="Enter full name"
-                className="col-span-3"
-                value={newMember.name}
-                onChange={(e) => setNewMember({...newMember, name: e.target.value})}
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter email"
-                className="col-span-3"
-                value={newMember.email}
-                onChange={(e) => setNewMember({...newMember, email: e.target.value})}
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="phone" className="text-right">
-                Phone
-              </Label>
-              <Input
-                id="phone"
-                placeholder="Enter phone number"
-                className="col-span-3"
-                value={newMember.phone}
-                onChange={(e) => setNewMember({...newMember, phone: e.target.value})}
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="department" className="text-right">
-                Department
-              </Label>
-              <Input
-                id="department"
-                placeholder="Enter department"
-                className="col-span-3"
-                value={newMember.department}
-                onChange={(e) => setNewMember({...newMember, department: e.target.value})}
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="studentid" className="text-right">
-                Student ID
-              </Label>
-              <Input
-                id="studentid"
-                placeholder="Enter student ID"
-                className="col-span-3"
-                value={newMember.studentid}
-                onChange={(e) => setNewMember({...newMember, studentid: e.target.value})}
-              />
-            </div>
+            {room?.fieldConfiguration?.fields ? (
+              // Dynamic fields based on room configuration
+              room.fieldConfiguration.fields.map((field) => (
+                <div key={field.name} className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor={field.name} className="text-right">
+                    {field.name.charAt(0).toUpperCase() + field.name.slice(1)}
+                    {field.required && <span className="text-red-500 ml-1">*</span>}
+                    {field.name === room.fieldConfiguration.primaryField && (
+                      <Badge variant="outline" className="ml-1 text-xs">Primary</Badge>
+                    )}
+                  </Label>
+                  <Input
+                    id={field.name}
+                    type={field.type === 'email' ? 'email' : 
+                          field.type === 'number' ? 'number' : 
+                          field.type === 'date' ? 'date' : 'text'}
+                    placeholder={`Enter ${field.name}`}
+                    className="col-span-3"
+                    value={newMember[field.name] || ''}
+                    onChange={(e) => setNewMember({...newMember, [field.name]: e.target.value})}
+                    required={field.required}
+                  />
+                </div>
+              ))
+            ) : (
+              // Fallback to legacy fields if no configuration
+              <>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="name" className="text-right">
+                    Name *
+                  </Label>
+                  <Input
+                    id="name"
+                    placeholder="Enter full name"
+                    className="col-span-3"
+                    value={newMember.name || ''}
+                    onChange={(e) => setNewMember({...newMember, name: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="email" className="text-right">
+                    Email *
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter email"
+                    className="col-span-3"
+                    value={newMember.email || ''}
+                    onChange={(e) => setNewMember({...newMember, email: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="phone" className="text-right">
+                    Phone
+                  </Label>
+                  <Input
+                    id="phone"
+                    placeholder="Enter phone number"
+                    className="col-span-3"
+                    value={newMember.phone || ''}
+                    onChange={(e) => setNewMember({...newMember, phone: e.target.value})}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="department" className="text-right">
+                    Department
+                  </Label>
+                  <Input
+                    id="department"
+                    placeholder="Enter department"
+                    className="col-span-3"
+                    value={newMember.department || ''}
+                    onChange={(e) => setNewMember({...newMember, department: e.target.value})}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="studentid" className="text-right">
+                    Student ID
+                  </Label>
+                  <Input
+                    id="studentid"
+                    placeholder="Enter student ID"
+                    className="col-span-3"
+                    value={newMember.studentid || ''}
+                    onChange={(e) => setNewMember({...newMember, studentid: e.target.value})}
+                  />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button 
@@ -807,7 +903,17 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
             <Button 
               type="submit" 
               onClick={handleAddMember}
-              disabled={!newMember.name || !newMember.email}
+              disabled={(() => {
+                // Check if required fields are filled
+                if (room?.fieldConfiguration?.fields) {
+                  return room.fieldConfiguration.fields
+                    .filter(field => field.required)
+                    .some(field => !newMember[field.name]?.trim())
+                } else {
+                  // Fallback validation for legacy rooms
+                  return !newMember.name || !newMember.email
+                }
+              })()}
             >
               Add Member
             </Button>

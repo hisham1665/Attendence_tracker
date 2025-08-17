@@ -1,13 +1,17 @@
 import mongoose from 'mongoose';
 
 const memberSchema = new mongoose.Schema({
+    // Dynamic fields based on room configuration
+    dynamicFields: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+    },
+    // Keep legacy fields for backward compatibility
     name: {
-        type: String,
-        required: true
+        type: String
     },
     email: {
-        type: String,
-        required: true
+        type: String
     },
     phone: {
         type: String
