@@ -101,24 +101,24 @@ const Dashboard = ({ onRoomSelect }) => {
           title={`Welcome back, ${user?.name}! 👋`} 
           subtitle="Manage your event rooms and track attendance" 
         />
-      <div className="max-w-7xl mx-auto p-6 space">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
         {/* Navbar */}
 
         {/* Search and Create */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0 gap-4">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
             <Input
               placeholder="Search rooms..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-80 border-2 focus:border-purple-400 transition-colors duration-200"
+              className="pl-10 w-full sm:w-80 border-2 focus:border-purple-400 transition-colors duration-200"
             />
           </div>
           
           <Button 
             onClick={() => setIsCreateModalOpen(true)}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 w-full sm:w-auto"
           >
             <Plus className="h-4 w-4 mr-2" />
             Create Room
@@ -126,12 +126,12 @@ const Dashboard = ({ onRoomSelect }) => {
         </div>
 
         {/* Total Rooms Display */}
-        <div className="flex  mt-6 mb-2">
-          <div className="flex items-center space-x-3">
+        <div className="flex justify-center mt-6 mb-2">
+          <div className="flex items-center space-x-3 text-center">
             <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            <span className="text-lg font-medium text-slate-700 dark:text-slate-300">
+            <span className="text-base sm:text-lg font-medium text-slate-700 dark:text-slate-300">
               You have 
-              <span className="text-xl font-bold text-blue-600 dark:text-blue-400 mx-2">
+              <span className="text-lg sm:text-xl font-bold text-blue-600 dark:text-blue-400 mx-2">
                 {rooms.length}
               </span>
               {rooms.length === 1 ? 'room' : 'rooms'} created
@@ -141,10 +141,10 @@ const Dashboard = ({ onRoomSelect }) => {
 
         {/* Rooms Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mt-5">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <Card key={i} className="animate-pulse">
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
                   <div className="h-3 bg-slate-200 rounded w-1/2 mb-4"></div>
                   <div className="h-8 bg-slate-200 rounded"></div>
@@ -153,27 +153,27 @@ const Dashboard = ({ onRoomSelect }) => {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mt-6">
             {filteredRooms.map((room) => (
               <Card 
                 key={room._id} 
                 className="group hover:shadow-xl transition-all duration-300 cursor-pointer border-2 hover:border-purple-300 dark:hover:border-purple-600"
                 onClick={() => onRoomSelect(room)}
               >
-                <CardHeader className="pb-4">
+                <CardHeader className="pb-3 sm:pb-4 p-4 sm:p-6">
                   <div className="flex items-start justify-between">
-                    <div className="space-y-1 flex-1">
-                      <CardTitle className="text-lg group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <CardTitle className="text-base sm:text-lg group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors truncate">
                         {room.title}
                       </CardTitle>
-                      <CardDescription className="text-sm">
+                      <CardDescription className="text-xs sm:text-sm line-clamp-2">
                         {room.description || 'No description provided'}
                       </CardDescription>
                     </div>
                     
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 sm:transition-opacity ml-2 flex-shrink-0">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -197,11 +197,11 @@ const Dashboard = ({ onRoomSelect }) => {
                   </div>
                 </CardHeader>
                 
-                <CardContent>
-                  <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
-                    <div className="flex items-center space-x-4">
+                <CardContent className="p-4 sm:p-6 pt-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                       <div className="flex items-center space-x-1">
-                        <Users className="h-4 w-4" />
+                        <Users className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                         <span>{room.memberCount || 0} members</span>
                       </div>
                       <div className="flex items-center space-x-1">
@@ -209,16 +209,16 @@ const Dashboard = ({ onRoomSelect }) => {
                       </div>
                     </div>
                     
-                    <Badge variant="outline" className="group-hover:border-purple-400">
+                    <Badge variant="outline" className="group-hover:border-purple-400 self-start sm:self-center">
                       {room.status || 'Active'}
                     </Badge>
                   </div>
                   
-                  <div className="mt-4">
+                  <div className="mt-3 sm:mt-4">
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="w-full group-hover:bg-purple-50 group-hover:border-purple-300 dark:group-hover:bg-purple-900/20"
+                      className="w-full sm:w-auto group-hover:bg-purple-50 group-hover:border-purple-300 dark:group-hover:bg-purple-900/20"
                     >
                       View Details
                     </Button>

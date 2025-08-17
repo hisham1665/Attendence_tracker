@@ -313,24 +313,24 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-purple-900/20 dark:to-slate-900 transition-all duration-500">
       <Navbar subtitle="View All The Room Details" title='Room Dashboard'/>
-      <div className="max-w-7xl mx-auto p-6 space-y-8">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
         {/* Header */}
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="space-y-4">
             <Button 
               variant="outline" 
               onClick={onBack}
-              className="border-2"
+              className="border-2 w-full sm:w-auto"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Dashboard
             </Button>
             
             <div className="space-y-2">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent break-words">
                 {room.name || room.title || 'Untitled Room'}
               </h1>
-              <p className="text-slate-600 dark:text-slate-300 text-lg">
+              <p className="text-slate-600 dark:text-slate-300 text-base sm:text-lg">
                 {room.description || 'No description provided'}
               </p>
             </div>
@@ -338,35 +338,35 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <Card className="border-2 border-blue-200 dark:border-blue-800">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Sessions</p>
-                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{sessions.length}</p>
+                  <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Total Sessions</p>
+                  <p className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400">{sessions.length}</p>
                 </div>
-                <Calendar className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 dark:text-blue-400" />
               </div>
             </CardContent>
           </Card>
           
           <Card className="border-2 border-green-200 dark:border-green-800">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Active Sessions</p>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Active Sessions</p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">
                     {sessions.filter(s => s.status === 'active').length}
                   </p>
                 </div>
-                <Clock className="h-8 w-8 text-green-600 dark:text-green-400" />
+                <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-green-600 dark:text-green-400" />
               </div>
             </CardContent>
           </Card>
           
           <Card className="border-2 border-purple-200 dark:border-purple-800">
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Members</p>
@@ -398,51 +398,55 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
         </div>
 
         {/* Actions */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0 gap-4">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
             <Input
               placeholder="Search sessions..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-80 border-2 focus:border-purple-400 transition-colors duration-200"
+              className="pl-10 w-full sm:w-80 border-2 focus:border-purple-400 transition-colors duration-200"
             />
           </div>
           
-          <div className="flex space-x-3">
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
             <Button 
               variant="outline"
               onClick={() => setIsUploadMembersModalOpen(true)}
-              className="border-2"
+              className="border-2 w-full sm:w-auto"
             >
               <Upload className="h-4 w-4 mr-2" />
-              Upload Members
+              <span className="hidden sm:inline">Upload Members</span>
+              <span className="sm:hidden">Upload</span>
             </Button>
             
             <Button 
               variant="outline"
               onClick={() => setIsAddMemberModalOpen(true)}
-              className="border-2"
+              className="border-2 w-full sm:w-auto"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Add Single Member
+              <span className="hidden sm:inline">Add Single Member</span>
+              <span className="sm:hidden">Add Member</span>
             </Button>
             
             <Button 
               variant="outline"
               onClick={() => setShowMembersSection(!showMembersSection)}
-              className="border-2"
+              className="border-2 w-full sm:w-auto"
             >
               <Users className="h-4 w-4 mr-2" />
-              {showMembersSection ? 'Hide' : 'View'} Members
+              <span className="hidden sm:inline">{showMembersSection ? 'Hide' : 'View'} Members</span>
+              <span className="sm:hidden">{showMembersSection ? 'Hide' : 'View'}</span>
             </Button>
             
             <Button 
               onClick={() => setIsCreateSessionModalOpen(true)}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 w-full sm:w-auto"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Create Session
+              <span className="hidden sm:inline">Create Session</span>
+              <span className="sm:hidden">Create</span>
             </Button>
           </div>
         </div>

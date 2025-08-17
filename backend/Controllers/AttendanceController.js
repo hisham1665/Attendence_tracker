@@ -1,4 +1,5 @@
 import AttendenceModel from '../models/AttendenceModel.js'
+import Session from '../models/SessionModel.js'
 import mongoose from 'mongoose'
 
 // Get attendance records for a session
@@ -44,6 +45,16 @@ export const markAttendance = async (req, res) => {
     const { member, session, status } = req.body
     
     console.log('Marking attendance:', { member, session, status })
+    
+    // Check if session exists and is active
+    const sessionDoc = await Session.findById(session)
+    if (!sessionDoc) {
+      return res.status(404).json({ message: 'Session not found' })
+    }
+    
+    if (sessionDoc.status === 'closed') {
+      return res.status(400).json({ message: 'Cannot mark attendance. Session is closed.' })
+    }
     
     // Check if attendance record already exists
     let attendance = await AttendenceModel.findOne({ member, session })

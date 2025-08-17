@@ -111,9 +111,6 @@ const CreateSessionModal = ({ isOpen, onClose, onCreateSession, editingSession, 
     onClose()
   }
 
-  // Get today's date for min date attribute
-  const today = new Date().toISOString().split('T')[0]
-
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
@@ -158,7 +155,6 @@ const CreateSessionModal = ({ isOpen, onClose, onCreateSession, editingSession, 
                 id="date"
                 name="date"
                 type="date"
-                min={today}
                 value={formData.date}
                 onChange={handleInputChange}
                 className={errors.date ? 'border-red-500' : ''}

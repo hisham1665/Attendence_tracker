@@ -59,6 +59,27 @@ export const updateSession = async (req, res) => {
   }
 };
 
+// Toggle session status between active and closed
+export const toggleSessionStatus = async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id);
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    
+    // Check if user owns this session
+    if (session.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Access denied. You can only modify your own sessions.' });
+    }
+    
+    // Toggle status
+    session.status = session.status === 'active' ? 'closed' : 'active';
+    await session.save();
+    
+    res.json(session);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
 // Delete a session
 export const deleteSession = async (req, res) => {
   try {
