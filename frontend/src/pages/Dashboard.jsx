@@ -8,8 +8,6 @@ import {
   Plus, 
   Search, 
   Users, 
-  Calendar, 
-  Clock,
   MoreHorizontal,
   Edit,
   Trash2
@@ -100,7 +98,7 @@ const Dashboard = ({ onRoomSelect }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-purple-900/20 dark:to-slate-900 transition-all duration-500">
         <Navbar 
-          title="Dashboard" 
+          title={`Welcome back, ${user?.name}! 👋`} 
           subtitle="Manage your event rooms and track attendance" 
         />
       <div className="max-w-7xl mx-auto p-6 space">
@@ -127,53 +125,18 @@ const Dashboard = ({ onRoomSelect }) => {
           </Button>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
-          <Card className="border-2 border-blue-200 dark:border-blue-800">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Rooms</p>
-                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{rooms.length}</p>
-                </div>
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-2 border-green-200 dark:border-green-800">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Active Sessions</p>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {rooms.reduce((total, room) => total + (room.activeSessions || 0), 0)}
-                  </p>
-                </div>
-                <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                  <Clock className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-2 border-purple-200 dark:border-purple-800">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Total Events</p>
-                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                    {rooms.reduce((total, room) => total + (room.totalSessions || 0), 0)}
-                  </p>
-                </div>
-                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                  <Calendar className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Total Rooms Display */}
+        <div className="flex  mt-6 mb-2">
+          <div className="flex items-center space-x-3">
+            <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <span className="text-lg font-medium text-slate-700 dark:text-slate-300">
+              You have 
+              <span className="text-xl font-bold text-blue-600 dark:text-blue-400 mx-2">
+                {rooms.length}
+              </span>
+              {rooms.length === 1 ? 'room' : 'rooms'} created
+            </span>
+          </div>
         </div>
 
         {/* Rooms Grid */}
@@ -242,8 +205,7 @@ const Dashboard = ({ onRoomSelect }) => {
                         <span>{room.memberCount || 0} members</span>
                       </div>
                       <div className="flex items-center space-x-1">
-                        <Calendar className="h-4 w-4" />
-                        <span>{room.sessionCount || 0} sessions</span>
+                        <span>📅 {room.sessionCount || 0} sessions</span>
                       </div>
                     </div>
                     

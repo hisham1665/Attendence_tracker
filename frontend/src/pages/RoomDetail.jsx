@@ -312,7 +312,7 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-purple-900/20 dark:to-slate-900 transition-all duration-500">
-      <Navbar subtitle="Room Details" />
+      <Navbar subtitle="View All The Room Details" title='Room Dashboard'/>
       <div className="max-w-7xl mx-auto p-6 space-y-8">
         {/* Header */}
         <div className="flex items-start justify-between">
