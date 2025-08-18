@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -22,7 +24,8 @@ import {
   Filter,
   RefreshCw,
   Lock,
-  Unlock
+  Unlock,
+  FileText
 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
@@ -255,6 +258,130 @@ const SessionAttendance = ({ session, room, onBack }) => {
     window.URL.revokeObjectURL(url)
   }
 
+  // PDF Export - Simple Excel-like table
+  const exportToPDF = () => {
+    const doc = new jsPDF('p', 'mm', 'a4')
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 15
+    let currentY = margin
+
+    // Simple header
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.text('HH Attendance Report', margin, currentY)
+    currentY += 10
+
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Room: ${room.title}`, margin, currentY)
+    currentY += 6
+    doc.text(`Session: ${sessionData.title}`, margin, currentY)
+    currentY += 6
+    doc.text(`Date: ${new Date(sessionData.createdAt).toLocaleDateString()}`, margin, currentY)
+    currentY += 15
+
+    // Prepare table data using dynamic field configuration
+    const headers = ['S.No']
+    
+    // Add dynamic headers from room configuration
+    if (room.fieldConfiguration?.fields) {
+      room.fieldConfiguration.fields.forEach(field => {
+        headers.push(field.name.charAt(0).toUpperCase() + field.name.slice(1))
+      })
+    }
+    headers.push('Status')
+    
+    const tableData = []
+    
+    membersWithAttendance.forEach((member, index) => {
+      console.log('Member data:', member) // Debug log
+      
+      const row = [(index + 1).toString()] // Start with S.No
+      
+      // Add data for each dynamic field
+      if (room.fieldConfiguration?.fields) {
+        room.fieldConfiguration.fields.forEach(field => {
+          const value = getMemberFieldValue(member, field.name) || 'N/A'
+          row.push(value)
+        })
+      }
+      
+      // Add attendance status
+      row.push(member.attendanceStatus?.toUpperCase() || 'ABSENT')
+      
+      tableData.push(row)
+    })
+
+    console.log('Headers:', headers) // Debug log
+    console.log('Table data:', tableData) // Debug log
+
+    // Create dynamic column styles
+    const columnStyles = {}
+    const totalColumns = headers.length
+    const availableWidth = 175 // Increased width to use more space on right side
+    
+    // S.No column (fixed width)
+    columnStyles[0] = { halign: 'center', cellWidth: 15 }
+    
+    // Dynamic field columns (distribute remaining width)
+    const remainingWidth = availableWidth - 15 - 25 // Subtract S.No and Status width
+    const fieldCount = totalColumns - 2 // Exclude S.No and Status
+    const fieldWidth = fieldCount > 0 ? remainingWidth / fieldCount : 35
+    
+    for (let i = 1; i < totalColumns - 1; i++) {
+      columnStyles[i] = { halign: 'left', cellWidth: fieldWidth }
+    }
+    
+    // Status column (slightly increased width)
+    columnStyles[totalColumns - 1] = { halign: 'center', cellWidth: 25 }
+
+    // Use autoTable for clean Excel-like table
+    autoTable(doc, {
+      head: [headers],
+      body: tableData,
+      startY: currentY,
+      margin: { left: margin, right: 10 }, // Reduced right margin to allow more table width
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        overflow: 'linebreak',
+        halign: 'left'
+      },
+      headStyles: {
+        fillColor: [240, 240, 240],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0]
+      },
+      alternateRowStyles: {
+        fillColor: [250, 250, 250]
+      },
+      columnStyles: columnStyles,
+      didParseCell: function(data) {
+        // Color status cells (last column)
+        if (data.column.index === totalColumns - 1 && data.section === 'body') {
+          const status = data.cell.text[0]
+          if (status === 'PRESENT') {
+            data.cell.styles.textColor = [0, 128, 0] // Green
+          } else if (status === 'ABSENT') {
+            data.cell.styles.textColor = [255, 0, 0] // Red
+          } else if (status === 'LATE') {
+            data.cell.styles.textColor = [255, 165, 0] // Orange
+          }
+        }
+      }
+    })
+
+    // Save the PDF
+    const fileName = `${sessionData.title}_attendance_${new Date().toISOString().split('T')[0]}.pdf`
+    doc.save(fileName)
+  }
+
   // Combine members with their attendance status
   // Helper function to get member ID consistently (same as in toggleAttendance)
   const getMemberId = (attendance) => {
@@ -393,15 +520,28 @@ const SessionAttendance = ({ session, room, onBack }) => {
               )}
             </Button>
             
-            <Button 
-              variant="outline"
-              onClick={exportToCSV}
-              className="border-2 w-full sm:w-auto"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Export CSV</span>
-              <span className="sm:hidden">Export</span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline"
+                  className="border-2 w-full sm:w-auto"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Export</span>
+                  <span className="sm:hidden">Export</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportToCSV} className="cursor-pointer">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToPDF} className="cursor-pointer">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Export as PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             
             <Button 
               onClick={fetchAttendance}
