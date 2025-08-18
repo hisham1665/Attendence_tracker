@@ -278,7 +278,29 @@ const SessionAttendance = ({ session, room, onBack }) => {
     currentY += 6
     doc.text(`Session: ${sessionData.title}`, margin, currentY)
     currentY += 6
-    doc.text(`Date: ${new Date(sessionData.createdAt).toLocaleDateString()}`, margin, currentY)
+    
+    // Fix date formatting with proper error handling
+    let dateText = 'N/A'
+    try {
+      const dateToUse = sessionData.date || sessionData.createdAt || new Date()
+      const date = new Date(dateToUse)
+      if (!isNaN(date.getTime())) {
+        dateText = date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      }
+    } catch (error) {
+      console.error('Date formatting error:', error)
+      dateText = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    }
+    
+    doc.text(`Date: ${dateText}`, margin, currentY)
     currentY += 15
 
     // Prepare table data using dynamic field configuration
