@@ -300,6 +300,28 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
     }
   }
 
+  const handleDeleteMember = async (memberId, memberName) => {
+    if (window.confirm(`Are you sure you want to delete ${memberName}? This action cannot be undone.`)) {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch(`/api/members/${memberId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+
+        if (response.ok) {
+          fetchMembers() // Refresh the members list
+          alert('Member deleted successfully')
+        } else {
+          alert('Failed to delete member')
+        }
+      } catch (error) {
+        console.error('Error deleting member:', error)
+        alert('Error deleting member')
+      }
+    }
+  }
+
   const filteredSessions = sessions.filter(session => {
     const title = (session.title || '').toLowerCase()
     const name = (session.name || '').toLowerCase()
@@ -737,23 +759,17 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
                           </>
                         )}
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit Member
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-red-600">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete Member
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteMember(
+                              member._id, 
+                              getMemberFieldValue(member, room.fieldConfiguration?.primaryField || 'name')
+                            )}
+                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
