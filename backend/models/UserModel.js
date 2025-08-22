@@ -16,6 +16,33 @@ const userSchema = new mongoose.Schema({
     password: {
         type: String,
         required: true
+    },
+    phone: {
+        type: String,
+        trim: true
+    },
+    department: {
+        type: String,
+        trim: true
+    },
+    organization: {
+        type: String,
+        trim: true
+    },
+    preferences: {
+        theme: {
+            type: String,
+            enum: ['light', 'dark', 'system'],
+            default: 'system'
+        },
+        notifications: {
+            email: { type: Boolean, default: true },
+            browser: { type: Boolean, default: true }
+        },
+        language: {
+            type: String,
+            default: 'en'
+        }
     }
 }, { timestamps: true });
 

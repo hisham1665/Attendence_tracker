@@ -90,3 +90,150 @@ export const deleteUser = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const getUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+export const updateUserProfile = async (req, res) => {
+  try {
+    const { name, email, phone, department, organization } = req.body;
+
+    // Check if email is already taken by another user
+    if (email) {
+      const existingUser = await User.findOne({
+        email,
+        _id: { $ne: req.user.id }
+      });
+      if (existingUser) {
+        return res.status(400).json({ message: 'Email already exists' });
+      }
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        name: name || undefined,
+        email: email || undefined,
+        phone: phone || undefined,
+        department: department || undefined,
+        organization: organization || undefined,
+        updatedAt: new Date()
+      },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      message: 'Profile updated successfully',
+      user
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        message: 'Validation error',
+        errors: error.errors
+      });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+// Change password
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        message: 'Current password and new password are required'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message: 'New password must be at least 6 characters long'
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // Update password
+    await User.findByIdAndUpdate(req.user.id, {
+      password: hashedPassword,
+      updatedAt: new Date()
+    });
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+import Room from '../models/RoomsModel.js';
+import Session from '../models/SessionModel.js';
+import Member from '../models/MembersModel.js';
+
+// Get user statistics
+export const getUserStats = async (req, res) => {
+  try {
+    const [roomCount, sessionCount, memberCount] = await Promise.all([
+      Room.countDocuments({ user: req.user.id }),
+      Session.countDocuments({ user: req.user.id }),
+      Member.countDocuments({ user: req.user.id })
+    ]);
+
+    // Get recent activity
+    const recentRooms = await Room.find({ user: req.user.id })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('name createdAt');
+
+    const recentSessions = await Session.find({ user: req.user.id })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('room', 'name')
+      .select('title date room createdAt');
+
+    res.json({
+      stats: {
+        totalRooms: roomCount,
+        totalSessions: sessionCount,
+        totalMembers: memberCount
+      },
+      recentActivity: {
+        rooms: recentRooms,
+        sessions: recentSessions
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user stats:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

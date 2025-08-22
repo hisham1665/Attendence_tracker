@@ -10,7 +10,7 @@ import {
   Moon
 } from 'lucide-react'
 
-const Navbar = ({ title = "Dashboard", subtitle = "Manage your event rooms and track attendance" }) => {
+const Navbar = ({ title = "Dashboard", subtitle = "Manage your event rooms and track attendance", onSettingsClick }) => {
   const { user, logout } = useAuth()
   const { darkMode, toggleTheme } = useTheme()
 
@@ -49,6 +49,7 @@ const Navbar = ({ title = "Dashboard", subtitle = "Manage your event rooms and t
         <Button
           variant="outline"
           size="sm"
+          onClick={onSettingsClick}
           className="border-2"
         >
           <Settings className="h-4 w-4 mr-2" />

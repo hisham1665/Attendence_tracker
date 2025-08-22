@@ -17,7 +17,7 @@ import EditRoomModal from '../components/EditRoomModal'
 import Navbar from '../components/Navbar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
-const Dashboard = ({ onRoomSelect }) => {
+const Dashboard = ({ onRoomSelect, onSettingsClick }) => {
   const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [rooms, setRooms] = useState([])
@@ -130,6 +130,7 @@ const Dashboard = ({ onRoomSelect }) => {
         <Navbar 
           title={`Welcome back, ${user?.name}! 👋`} 
           subtitle="Manage your event rooms and track attendance" 
+          onSettingsClick={onSettingsClick}
         />
       <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
         {/* Navbar */}

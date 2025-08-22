@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage'
 import Dashboard from './pages/Dashboard'
 import RoomDetail from './pages/RoomDetail'
 import SessionAttendance from './pages/SessionAttendance'
+import Settings from './pages/Settings'
 import { useAuth } from './contexts/AuthContext'
 
 
@@ -39,6 +40,14 @@ function AppContent() {
     setSelectedSession(null)
   }
 
+  const handleSettingsClick = () => {
+    setCurrentView('settings')
+  }
+
+  const handleBackFromSettings = () => {
+    setCurrentView('dashboard')
+  }
+
   switch (currentView) {
     case 'room-detail':
       return (
@@ -58,10 +67,16 @@ function AppContent() {
         />
       )
     
+    case 'settings':
+      return (
+        <Settings onBack={handleBackFromSettings} />
+      )
+    
     default:
       return (
         <Dashboard 
           onRoomSelect={handleRoomSelect}
+          onSettingsClick={handleSettingsClick}
         />
       )
   }
