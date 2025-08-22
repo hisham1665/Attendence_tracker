@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { Button } from '@/components/ui/button'
@@ -136,14 +136,29 @@ const SessionAttendance = ({ session, room, onBack }) => {
       return attendance.member        // Return ID directly if it's a string
     }
 
-    // Optimistic update
+    // Find existing attendance record
+    const existingAttendance = attendance.find(a => getMemberId(a) === memberId)
+    
+    // If status is the same, no need to update
+    if (existingAttendance && existingAttendance.status === status) {
+      return
+    }
+
+    // Store previous state for rollback
+    const previousAttendance = [...attendance]
+
+    // Optimized update - only update the specific record
     setAttendance(prevAttendance => {
       const existingIndex = prevAttendance.findIndex(a => getMemberId(a) === memberId)
       
       if (existingIndex >= 0) {
-        // Update existing record
+        // Update existing record without recreating the entire array
         const updated = [...prevAttendance]
-        updated[existingIndex] = { ...updated[existingIndex], status }
+        updated[existingIndex] = { 
+          ...updated[existingIndex], 
+          status,
+          timestamp: new Date().toISOString() // Update timestamp
+        }
         return updated
       } else {
         // Add new record
@@ -173,18 +188,29 @@ const SessionAttendance = ({ session, room, onBack }) => {
       })
       
       if (response.ok) {
-        // Replace optimistic update with real data
-        await fetchAttendance()
+        // Get the updated attendance record from response
+        const updatedAttendanceRecord = await response.json()
+        
+        // Update only the specific record instead of fetching all
+        setAttendance(prevAttendance => {
+          const existingIndex = prevAttendance.findIndex(a => getMemberId(a) === memberId)
+          if (existingIndex >= 0) {
+            const updated = [...prevAttendance]
+            updated[existingIndex] = updatedAttendanceRecord
+            return updated
+          }
+          return [...prevAttendance, updatedAttendanceRecord]
+        })
       } else {
-        // Revert optimistic update on error
-        await fetchAttendance()
+        // Revert to previous state on error
+        setAttendance(previousAttendance)
         const errorData = await response.json()
         console.error('Failed to update attendance:', errorData.message)
         alert('Failed to update attendance: ' + errorData.message)
       }
     } catch (error) {
-      // Revert optimistic update on error
-      await fetchAttendance()
+      // Revert to previous state on error
+      setAttendance(previousAttendance)
       console.error('Error updating attendance:', error)
       alert('Network error. Please try again.')
     }
@@ -413,16 +439,18 @@ const SessionAttendance = ({ session, room, onBack }) => {
     return attendance.member        // Return ID directly if it's a string
   }
 
-  const membersWithAttendance = members.map(member => {
-    const memberAttendance = attendance.find(a => getMemberId(a) === member._id)
-    return {
-      ...member,
-      attendanceStatus: memberAttendance?.status || 'absent',
-      checkInTime: memberAttendance?.checkInTime,
-      checkOutTime: memberAttendance?.checkOutTime,
-      attendanceId: memberAttendance?._id
-    }
-  })
+  const membersWithAttendance = useMemo(() => {
+    return members.map(member => {
+      const memberAttendance = attendance.find(a => getMemberId(a) === member._id)
+      return {
+        ...member,
+        attendanceStatus: memberAttendance?.status || 'absent',
+        checkInTime: memberAttendance?.checkInTime,
+        checkOutTime: memberAttendance?.checkOutTime,
+        attendanceId: memberAttendance?._id
+      }
+    })
+  }, [members, attendance])
 
   // Filter members based on search and attendance status
   const filteredMembers = membersWithAttendance.filter(member => {
@@ -786,8 +814,12 @@ const SessionAttendance = ({ session, room, onBack }) => {
                         size="sm"
                         variant={member.attendanceStatus === 'present' ? 'default' : 'outline'}
                         onClick={() => toggleAttendance(member._id, 'present')}
-                        className={`flex items-center gap-2 ${member.attendanceStatus === 'present' ? 'bg-green-600 hover:bg-green-700 text-white' : 'border-green-200 text-green-600 hover:bg-green-50'}`}
-                        disabled={loading || sessionData.status === 'closed'}
+                        className={`flex items-center gap-2 transition-all duration-200 ${
+                          member.attendanceStatus === 'present' 
+                            ? 'bg-green-600 hover:bg-green-700 text-white' 
+                            : 'border-green-200 text-green-600 hover:bg-green-50'
+                        }`}
+                        disabled={loading || sessionData.status === 'closed' || member.attendanceStatus === 'present'}
                       >
                         <CheckCircle className="h-4 w-4" />
                         Present
@@ -796,8 +828,12 @@ const SessionAttendance = ({ session, room, onBack }) => {
                         size="sm"
                         variant={member.attendanceStatus === 'absent' ? 'default' : 'outline'}
                         onClick={() => toggleAttendance(member._id, 'absent')}
-                        className={`flex items-center gap-2 ${member.attendanceStatus === 'absent' ? 'bg-red-600 hover:bg-red-700 text-white' : 'border-red-200 text-red-600 hover:bg-red-50'}`}
-                        disabled={loading || sessionData.status === 'closed'}
+                        className={`flex items-center gap-2 transition-all duration-200 ${
+                          member.attendanceStatus === 'absent' 
+                            ? 'bg-red-600 hover:bg-red-700 text-white' 
+                            : 'border-red-200 text-red-600 hover:bg-red-50'
+                        }`}
+                        disabled={loading || sessionData.status === 'closed' || member.attendanceStatus === 'absent'}
                       >
                         <XCircle className="h-4 w-4" />
                         Absent
