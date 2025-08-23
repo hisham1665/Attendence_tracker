@@ -203,22 +203,27 @@ import Member from '../models/MembersModel.js';
 // Get user statistics
 export const getUserStats = async (req, res) => {
   try {
-    const [roomCount, sessionCount, memberCount] = await Promise.all([
-      Room.countDocuments({ user: req.user.id }),
-      Session.countDocuments({ user: req.user.id }),
-      Member.countDocuments({ user: req.user.id })
+    // Get rooms created by the user
+    const userId = req.user.id;
+    const [roomCount, memberCount] = await Promise.all([
+      Room.countDocuments({ createdBy: userId }),
+      Member.countDocuments({})
     ]);
 
-    // Get recent activity
-    const recentRooms = await Room.find({ user: req.user.id })
+    // Get recent rooms
+    const recentRooms = await Room.find({ createdBy: userId })
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('name createdAt');
+      .select('title createdAt');
 
-    const recentSessions = await Session.find({ user: req.user.id })
+    // Get sessions for rooms created by the user
+    const userRooms = await Room.find({ createdBy: userId }).select('_id');
+    const roomIds = userRooms.map(r => r._id);
+    const sessionCount = await Session.countDocuments({ room: { $in: roomIds } });
+    const recentSessions = await Session.find({ room: { $in: roomIds } })
       .sort({ createdAt: -1 })
       .limit(5)
-      .populate('room', 'name')
+      .populate('room', 'title')
       .select('title date room createdAt');
 
     res.json({

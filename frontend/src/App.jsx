@@ -26,6 +26,10 @@ function AppContent() {
 
   const handleSessionSelect = (session) => {
     setSelectedSession(session)
+    // If session has room data, set it as selected room for proper navigation
+    if (session.room) {
+      setSelectedRoom(session.room)
+    }
     setCurrentView('session-attendance')
   }
 
@@ -36,8 +40,14 @@ function AppContent() {
   }
 
   const handleBackToRoom = () => {
-    setCurrentView('room-detail')
-    setSelectedSession(null)
+    // Only navigate to room detail if we have a selected room
+    if (selectedRoom) {
+      setCurrentView('room-detail')
+      setSelectedSession(null)
+    } else {
+      // If no room selected, go back to dashboard
+      handleBackToDashboard()
+    }
   }
 
   const handleSettingsClick = () => {
@@ -69,7 +79,11 @@ function AppContent() {
     
     case 'settings':
       return (
-        <Settings onBack={handleBackFromSettings} />
+        <Settings 
+          onBack={handleBackFromSettings}
+          onRoomSelect={handleRoomSelect}
+          onSessionSelect={handleSessionSelect}
+        />
       )
     
     default:

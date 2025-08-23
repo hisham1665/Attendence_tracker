@@ -30,6 +30,26 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 const SessionAttendance = ({ session, room, onBack }) => {
+  // Safety check for missing session or room data
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-purple-900/20 dark:to-slate-900">
+        <Navbar title="Session Not Found" subtitle="Please select a valid session" />
+        <div className="max-w-7xl mx-auto p-4 sm:p-6">
+          <Button onClick={onBack} variant="outline" className="mb-4">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Go Back
+          </Button>
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-gray-600 dark:text-gray-400">Session data not found. Please try again.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
   const [searchTerm, setSearchTerm] = useState('')
   const [members, setMembers] = useState([])
   const [attendance, setAttendance] = useState([])

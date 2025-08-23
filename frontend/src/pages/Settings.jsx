@@ -1,19 +1,21 @@
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
-import { 
-  User, 
-  Lock, 
-  Settings as SettingsIcon, 
-  Bell, 
-  Shield, 
+
+
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import {
+  User,
+  Lock,
+  Settings as SettingsIcon,
+  Bell,
+  Shield,
   Activity,
   Calendar,
   Users,
@@ -26,10 +28,12 @@ import {
   AlertCircle,
   CheckCircle,
   Clock
-} from 'lucide-react'
-import Navbar from '../components/Navbar'
+} from 'lucide-react';
+import Navbar from '../components/Navbar';
+import { useAuth } from '../contexts/AuthContext';
 
-const Settings = ({ onBack }) => {
+const Settings = ({ onBack, onRoomSelect, onSessionSelect }) => {
+  const { updateUser } = useAuth()
   const [user, setUser] = useState(null)
   const [userStats, setUserStats] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -144,6 +148,7 @@ const Settings = ({ onBack }) => {
       if (response.ok) {
         const data = await response.json()
         setUser(data.user)
+        updateUser(data.user) // Update the user in AuthContext
         showMessage('Profile updated successfully', 'success')
       } else {
         const error = await response.json()
@@ -205,6 +210,30 @@ const Settings = ({ onBack }) => {
     }
   }
 
+  // Handle session selection by fetching complete room data
+  const handleSessionSelect = async (session) => {
+    if (!onSessionSelect || !session.room?._id) {
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/rooms/${session.room._id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (response.ok) {
+        const completeRoom = await response.json()
+        onSessionSelect({ ...session, room: completeRoom })
+      } else {
+        onSessionSelect(session)
+      }
+    } catch (error) {
+      console.error('Error fetching room data:', error)
+      onSessionSelect(session)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
@@ -251,7 +280,7 @@ const Settings = ({ onBack }) => {
         )}
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               Profile
@@ -259,10 +288,6 @@ const Settings = ({ onBack }) => {
             <TabsTrigger value="security" className="flex items-center gap-2">
               <Lock className="h-4 w-4" />
               Security
-            </TabsTrigger>
-            <TabsTrigger value="preferences" className="flex items-center gap-2">
-              <SettingsIcon className="h-4 w-4" />
-              Preferences
             </TabsTrigger>
             <TabsTrigger value="activity" className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
@@ -485,73 +510,6 @@ const Settings = ({ onBack }) => {
           </TabsContent>
 
           {/* Preferences Tab */}
-          <TabsContent value="preferences" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <SettingsIcon className="h-5 w-5" />
-                  App Preferences
-                </CardTitle>
-                <CardDescription>
-                  Customize your app experience and notification settings
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <Label>Theme</Label>
-                      <p className="text-sm text-gray-500">Choose your preferred theme</p>
-                    </div>
-                    <Select value={preferences.theme} onValueChange={(value) => setPreferences({...preferences, theme: value})}>
-                      <SelectTrigger className="w-[120px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="light">Light</SelectItem>
-                        <SelectItem value="dark">Dark</SelectItem>
-                        <SelectItem value="system">System</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div className="space-y-4">
-                    <Label className="text-base font-medium">Notifications</Label>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label>Email Notifications</Label>
-                        <p className="text-sm text-gray-500">Receive updates via email</p>
-                      </div>
-                      <Switch 
-                        checked={preferences.notifications.email}
-                        onCheckedChange={(checked) => setPreferences({
-                          ...preferences, 
-                          notifications: {...preferences.notifications, email: checked}
-                        })}
-                      />
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label>Browser Notifications</Label>
-                        <p className="text-sm text-gray-500">Receive browser push notifications</p>
-                      </div>
-                      <Switch 
-                        checked={preferences.notifications.browser}
-                        onCheckedChange={(checked) => setPreferences({
-                          ...preferences, 
-                          notifications: {...preferences.notifications, browser: checked}
-                        })}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* Activity Tab */}
           <TabsContent value="activity" className="space-y-6">
@@ -614,17 +572,21 @@ const Settings = ({ onBack }) => {
                     <CardContent>
                       <div className="space-y-3">
                         {userStats.recentActivity.rooms.length > 0 ? (
-                          userStats.recentActivity.rooms.map((room, index) => (
-                            <div key={room._id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          [...userStats.recentActivity.rooms].reverse().map((room, index) => (
+                            <button
+                              key={room._id}
+                              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg w-full text-left hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
+                              onClick={() => onRoomSelect && onRoomSelect(room)}
+                            >
                               <div>
-                                <p className="font-medium">{room.name}</p>
+                                <p className="font-medium">{room.title}</p>
                                 <p className="text-sm text-gray-500 flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
                                   {new Date(room.createdAt).toLocaleDateString()}
                                 </p>
                               </div>
                               <Badge variant="outline">{index + 1}</Badge>
-                            </div>
+                            </button>
                           ))
                         ) : (
                           <p className="text-gray-500 text-center py-4">No rooms created yet</p>
@@ -643,18 +605,22 @@ const Settings = ({ onBack }) => {
                     <CardContent>
                       <div className="space-y-3">
                         {userStats.recentActivity.sessions.length > 0 ? (
-                          userStats.recentActivity.sessions.map((session, index) => (
-                            <div key={session._id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          [...userStats.recentActivity.sessions].reverse().map((session, index) => (
+                            <button
+                              key={session._id}
+                              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg w-full text-left hover:bg-green-100 dark:hover:bg-green-900/30 transition"
+                              onClick={() => handleSessionSelect(session)}
+                            >
                               <div>
                                 <p className="font-medium">{session.title}</p>
-                                <p className="text-sm text-gray-500">{session.room?.name}</p>
+                                <p className="text-sm text-gray-500">{session.room?.title}</p>
                                 <p className="text-sm text-gray-500 flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
                                   {new Date(session.date || session.createdAt).toLocaleDateString()}
                                 </p>
                               </div>
                               <Badge variant="outline">{index + 1}</Badge>
-                            </div>
+                            </button>
                           ))
                         ) : (
                           <p className="text-gray-500 text-center py-4">No sessions created yet</p>
@@ -669,7 +635,7 @@ const Settings = ({ onBack }) => {
         </Tabs>
       </div>
     </div>
-  )
+  );
 }
 
-export default Settings
+export default Settings;
