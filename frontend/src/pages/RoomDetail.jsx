@@ -27,6 +27,26 @@ import Navbar from '../components/Navbar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
+  // Safety check for missing room data
+  if (!room) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-purple-900/20 dark:to-slate-900">
+        <Navbar title="Room Not Found" subtitle="Please select a valid room" onSettingsClick={onSettingsClick} />
+        <div className="max-w-7xl mx-auto p-4 sm:p-6">
+          <Button onClick={onBack} variant="outline" className="mb-4">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Go Back
+          </Button>
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-gray-600 dark:text-gray-400">Room data not found. Please try again.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
   const [searchTerm, setSearchTerm] = useState('')
   const [sessions, setSessions] = useState([])
   const [members, setMembers] = useState([])
@@ -39,12 +59,13 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false)
   const [showMembersSection, setShowMembersSection] = useState(false)
   const [newMember, setNewMember] = useState({})
+  const [roomData, setRoomData] = useState(room) // Local state to manage room data
 
   // Initialize newMember state based on room field configuration
   useEffect(() => {
-    if (room?.fieldConfiguration?.fields) {
+    if (roomData?.fieldConfiguration?.fields) {
       const initialMember = {}
-      room.fieldConfiguration.fields.forEach(field => {
+      roomData.fieldConfiguration.fields.forEach(field => {
         initialMember[field.name] = ''
       })
       setNewMember(initialMember)
@@ -58,7 +79,35 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
         studentid: ''
       })
     }
+  }, [roomData])
+
+  // Effect to ensure room data is complete
+  useEffect(() => {
+    setRoomData(room)
+    
+    // If room data is incomplete (missing title/name), refetch it
+    if (room && room._id && (!room.title && !room.name)) {
+      fetchRoomData()
+    }
   }, [room])
+
+  const fetchRoomData = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/rooms/${room._id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setRoomData(data)
+      }
+    } catch (error) {
+      console.error('Error fetching room data:', error)
+    }
+  }
 
   useEffect(() => {
     fetchSessions()
@@ -381,10 +430,10 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
             
             <div className="space-y-2">
               <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent break-words">
-                {room.name || room.title || 'Untitled Room'}
+                {roomData?.name || roomData?.title || 'Untitled Room'}
               </h1>
               <p className="text-slate-600 dark:text-slate-300 text-base sm:text-lg">
-                {room.description || 'No description provided'}
+                {roomData?.description || 'No description provided'}
               </p>
             </div>
           </div>
@@ -462,11 +511,11 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
             />
           </div>
           
-          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+          <div className="flex flex-col sm:flex-row md:flex-wrap lg:flex-nowrap space-y-2 sm:space-y-0 sm:space-x-3 md:gap-2 lg:gap-3">
             <Button 
               variant="outline"
               onClick={() => setIsUploadMembersModalOpen(true)}
-              className="border-2 w-full sm:w-auto"
+              className="border-2 w-full sm:w-auto md:flex-1 lg:flex-none"
             >
               <Upload className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Upload Members</span>
@@ -476,7 +525,7 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
             <Button 
               variant="outline"
               onClick={() => setIsAddMemberModalOpen(true)}
-              className="border-2 w-full sm:w-auto"
+              className="border-2 w-full sm:w-auto md:flex-1 lg:flex-none"
             >
               <Plus className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Add Single Member</span>
@@ -486,7 +535,7 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
             <Button 
               variant="outline"
               onClick={() => setShowMembersSection(!showMembersSection)}
-              className="border-2 w-full sm:w-auto"
+              className="border-2 w-full sm:w-auto md:flex-1 lg:flex-none"
             >
               <Users className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">{showMembersSection ? 'Hide' : 'View'} Members</span>
@@ -495,7 +544,7 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
             
             <Button 
               onClick={() => setIsCreateSessionModalOpen(true)}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 w-full sm:w-auto"
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 w-full sm:w-auto md:flex-1 lg:flex-none"
             >
               <Plus className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Create Session</span>

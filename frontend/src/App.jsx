@@ -26,10 +26,8 @@ function AppContent() {
 
   const handleSessionSelect = (session) => {
     setSelectedSession(session)
-    // If session has room data, set it as selected room for proper navigation
-    if (session.room) {
-      setSelectedRoom(session.room)
-    }
+    // Keep the current selectedRoom when navigating to session
+    // Don't overwrite it with session.room as it might be incomplete
     setCurrentView('session-attendance')
   }
 

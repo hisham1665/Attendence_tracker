@@ -856,9 +856,11 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
                         variant={member.attendanceStatus === 'present' ? 'default' : 'outline'}
                         onClick={() => toggleAttendance(member._id, 'present')}
                         className={`flex items-center gap-2 transition-all duration-200 ${
-                          member.attendanceStatus === 'present' 
-                            ? 'bg-green-600 hover:bg-green-700 text-white' 
-                            : 'border-green-200 text-green-600 hover:bg-green-50'
+                          sessionData.status === 'closed' 
+                            ? 'opacity-50 cursor-not-allowed border-gray-200 text-gray-400 bg-gray-50' 
+                            : member.attendanceStatus === 'present' 
+                              ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl border-green-600' 
+                              : 'border-green-500 text-green-700 hover:bg-green-100 hover:border-green-600 bg-white shadow-md hover:shadow-lg'
                         }`}
                         disabled={loading || sessionData.status === 'closed' || member.attendanceStatus === 'present'}
                       >
@@ -870,9 +872,11 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
                         variant={member.attendanceStatus === 'absent' ? 'default' : 'outline'}
                         onClick={() => toggleAttendance(member._id, 'absent')}
                         className={`flex items-center gap-2 transition-all duration-200 ${
-                          member.attendanceStatus === 'absent' 
-                            ? 'bg-red-600 hover:bg-red-700 text-white' 
-                            : 'border-red-200 text-red-600 hover:bg-red-50'
+                          sessionData.status === 'closed' 
+                            ? 'opacity-50 cursor-not-allowed border-gray-200 text-gray-400 bg-gray-50' 
+                            : member.attendanceStatus === 'absent' 
+                              ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl border-red-600' 
+                              : 'border-red-500 text-red-700 hover:bg-red-100 hover:border-red-600 bg-white shadow-md hover:shadow-lg'
                         }`}
                         disabled={loading || sessionData.status === 'closed' || member.attendanceStatus === 'absent'}
                       >
