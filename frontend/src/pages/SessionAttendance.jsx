@@ -99,9 +99,28 @@ const SessionAttendance = ({ session, room, onBack }) => {
   }
 
   useEffect(() => {
+    fetchSessionData()
     fetchMembers()
     fetchAttendance()
   }, [sessionData._id])
+
+  const fetchSessionData = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/sessions/${sessionData._id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setSessionData(data)
+      }
+    } catch (error) {
+      console.error('Error fetching session data:', error)
+    }
+  }
 
   const fetchMembers = async () => {
     try {
@@ -143,7 +162,7 @@ const SessionAttendance = ({ session, room, onBack }) => {
 
   const toggleAttendance = async (memberId, status) => {
     // Check if session is closed
-    if (sessionData.status === 'closed') {
+    if ((sessionData.status || 'active') === 'closed') {
       alert('Cannot mark attendance. Session is closed.')
       return
     }
@@ -519,6 +538,8 @@ const SessionAttendance = ({ session, room, onBack }) => {
     switch (status) {
       case 'present': return 'bg-green-500 text-white'
       case 'absent': return 'bg-red-500 text-white'
+      case 'active': return 'bg-green-500 text-white'
+      case 'closed': return 'bg-red-500 text-white'
       default: return 'bg-gray-500 text-white'
     }
   }
@@ -562,8 +583,8 @@ const SessionAttendance = ({ session, room, onBack }) => {
                     <span className="text-sm sm:text-base">{sessionData.location}</span>
                   </div>
                 )}
-                <Badge className={getStatusColor(sessionData.status)}>
-                  {sessionData.status}
+                <Badge className={getStatusColor(sessionData.status || 'active')}>
+                  {(sessionData.status || 'active').toUpperCase()}
                 </Badge>
               </div>
             </div>
@@ -573,9 +594,9 @@ const SessionAttendance = ({ session, room, onBack }) => {
             <Button 
               variant="outline"
               onClick={toggleSessionStatus}
-              className={`border-2 w-full sm:w-auto ${sessionData.status === 'closed' ? 'border-red-500 text-red-600 hover:bg-red-50' : 'border-green-500 text-green-600 hover:bg-green-50'}`}
+              className={`border-2 w-full sm:w-auto ${(sessionData.status || 'active') === 'closed' ? 'border-red-500 text-red-600 hover:bg-red-50' : 'border-green-500 text-green-600 hover:bg-green-50'}`}
             >
-              {sessionData.status === 'closed' ? (
+              {(sessionData.status || 'active') === 'closed' ? (
                 <>
                   <Unlock className="h-4 w-4 mr-2" />
                   <span className="hidden sm:inline">Reopen Session</span>
