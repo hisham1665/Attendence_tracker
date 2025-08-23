@@ -605,7 +605,7 @@ const Settings = ({ onBack, onRoomSelect, onSessionSelect }) => {
                     <CardContent>
                       <div className="space-y-3">
                         {userStats.recentActivity.sessions.length > 0 ? (
-                          [...userStats.recentActivity.sessions].reverse().map((session, index) => (
+                          userStats.recentActivity.sessions.map((session, index) => (
                             <button
                               key={session._id}
                               className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg w-full text-left hover:bg-green-100 dark:hover:bg-green-900/30 transition"

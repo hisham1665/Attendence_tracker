@@ -220,11 +220,13 @@ export const getUserStats = async (req, res) => {
     const userRooms = await Room.find({ createdBy: userId }).select('_id');
     const roomIds = userRooms.map(r => r._id);
     const sessionCount = await Session.countDocuments({ room: { $in: roomIds } });
+    
+    // Sort by updatedAt to show recently active sessions (e.g., when attendance was taken)
     const recentSessions = await Session.find({ room: { $in: roomIds } })
-      .sort({ createdAt: -1 })
+      .sort({ updatedAt: -1, createdAt: -1 })  // Sort by most recent activity first, then creation
       .limit(5)
       .populate('room', 'title')
-      .select('title date room createdAt');
+      .select('title date room createdAt updatedAt status');
 
     res.json({
       stats: {

@@ -24,6 +24,8 @@ const SessionSchema = new mongoose.Schema({
         enum: ['active', 'closed'],
         default: 'active'
     }
+}, {
+    timestamps: true  // This enables createdAt and updatedAt fields
 });
 
 export default mongoose.model('Session', SessionSchema);
