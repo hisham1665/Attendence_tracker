@@ -237,7 +237,7 @@ const Settings = ({ onBack, onRoomSelect, onSessionSelect }) => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <Navbar subtitle="Settings" />
+        <Navbar subtitle="Settings" hideSettings={true} />
         <div className="container mx-auto p-4 sm:p-6">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
@@ -252,7 +252,7 @@ const Settings = ({ onBack, onRoomSelect, onSessionSelect }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <Navbar subtitle="Settings" />
+      <Navbar subtitle="Settings" hideSettings={true} />
       
       <div className="container mx-auto p-4 sm:p-6 space-y-6">
         {/* Back Button */}

@@ -65,6 +65,7 @@ function AppContent() {
           room={selectedRoom}
           onBack={handleBackToDashboard}
           onSessionSelect={handleSessionSelect}
+          onSettingsClick={handleSettingsClick}
         />
       )
     
@@ -74,6 +75,7 @@ function AppContent() {
           session={selectedSession}
           room={selectedRoom}
           onBack={handleBackToRoom}
+          onSettingsClick={handleSettingsClick}
         />
       )
     

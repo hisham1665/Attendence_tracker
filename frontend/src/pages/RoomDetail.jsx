@@ -26,7 +26,7 @@ import FileUploadModal from '../components/FileUploadModal'
 import Navbar from '../components/Navbar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
-const RoomDetail = ({ room, onBack, onSessionSelect }) => {
+const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [sessions, setSessions] = useState([])
   const [members, setMembers] = useState([])
@@ -365,7 +365,7 @@ const RoomDetail = ({ room, onBack, onSessionSelect }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-purple-900/20 dark:to-slate-900 transition-all duration-500">
-      <Navbar subtitle="View All The Room Details" title='Room Dashboard'/>
+      <Navbar subtitle="View All The Room Details" title='Room Dashboard' onSettingsClick={onSettingsClick}/>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">

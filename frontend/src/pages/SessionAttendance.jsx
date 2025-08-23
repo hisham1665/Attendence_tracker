@@ -29,12 +29,12 @@ import {
 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
-const SessionAttendance = ({ session, room, onBack }) => {
+const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
   // Safety check for missing session or room data
   if (!session) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-purple-900/20 dark:to-slate-900">
-        <Navbar title="Session Not Found" subtitle="Please select a valid session" />
+        <Navbar title="Session Not Found" subtitle="Please select a valid session" onSettingsClick={onSettingsClick} />
         <div className="max-w-7xl mx-auto p-4 sm:p-6">
           <Button onClick={onBack} variant="outline" className="mb-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -554,7 +554,7 @@ const SessionAttendance = ({ session, room, onBack }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-purple-900/20 dark:to-slate-900 transition-all duration-500">
-      <Navbar subtitle="Session Attendance" />
+      <Navbar subtitle="Session Attendance" onSettingsClick={onSettingsClick} />
       <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
