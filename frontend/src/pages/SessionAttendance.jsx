@@ -666,6 +666,10 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
 
   const attendanceRate = stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0
 
+  // Smart button visibility logic
+  const shouldShowMarkAllPresent = stats.total > 0 && stats.present < stats.total // Not everyone is present
+  const shouldShowMarkAllAbsent = stats.total > 0 && stats.absent < stats.total   // Not everyone is absent
+
   const formatTime = (timeString) => {
     if (!timeString) return '-'
     return new Date(timeString).toLocaleTimeString('en-US', {
@@ -761,44 +765,48 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
               )}
             </Button>
             
-            {/* Bulk Attendance Buttons - Only show when session is active */}
+            {/* Bulk Attendance Buttons - Only show when session is active and when buttons are useful */}
             {(sessionData.status || 'active') === 'active' && (
               <>
-                <Button 
-                  onClick={markAllAsPresent}
-                  className="bg-green-600 hover:bg-green-700 text-white border-2 border-green-600 w-full sm:w-auto"
-                  disabled={members.length === 0 || bulkOperationLoading}
-                >
-                  {bulkOperationLoading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <UserPlus className="h-4 w-4 mr-2" />
-                  )}
-                  <span className="hidden sm:inline">
-                    {bulkOperationLoading ? 'Processing...' : 'Mark All Present'}
-                  </span>
-                  <span className="sm:hidden">
-                    {bulkOperationLoading ? 'Wait...' : 'All Present'}
-                  </span>
-                </Button>
+                {shouldShowMarkAllPresent && (
+                  <Button 
+                    onClick={markAllAsPresent}
+                    className="bg-green-600 hover:bg-green-700 text-white border-2 border-green-600 w-full sm:w-auto"
+                    disabled={members.length === 0 || bulkOperationLoading}
+                  >
+                    {bulkOperationLoading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <UserPlus className="h-4 w-4 mr-2" />
+                    )}
+                    <span className="hidden sm:inline">
+                      {bulkOperationLoading ? 'Processing...' : 'Mark All Present'}
+                    </span>
+                    <span className="sm:hidden">
+                      {bulkOperationLoading ? 'Wait...' : 'All Present'}
+                    </span>
+                  </Button>
+                )}
                 
-                <Button 
-                  onClick={markAllAsAbsent}
-                  className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 w-full sm:w-auto"
-                  disabled={members.length === 0 || bulkOperationLoading}
-                >
-                  {bulkOperationLoading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <UserMinus className="h-4 w-4 mr-2" />
-                  )}
-                  <span className="hidden sm:inline">
-                    {bulkOperationLoading ? 'Processing...' : 'Mark All Absent'}
-                  </span>
-                  <span className="sm:hidden">
-                    {bulkOperationLoading ? 'Wait...' : 'All Absent'}
-                  </span>
-                </Button>
+                {shouldShowMarkAllAbsent && (
+                  <Button 
+                    onClick={markAllAsAbsent}
+                    className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 w-full sm:w-auto"
+                    disabled={members.length === 0 || bulkOperationLoading}
+                  >
+                    {bulkOperationLoading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <UserMinus className="h-4 w-4 mr-2" />
+                    )}
+                    <span className="hidden sm:inline">
+                      {bulkOperationLoading ? 'Processing...' : 'Mark All Absent'}
+                    </span>
+                    <span className="sm:hidden">
+                      {bulkOperationLoading ? 'Wait...' : 'All Absent'}
+                    </span>
+                  </Button>
+                )}
               </>
             )}
             
@@ -835,6 +843,25 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
             </Button>
           </div>
         </div>
+
+        {/* Attendance Status Summary */}
+        {stats.total > 0 && (
+          <div className="flex justify-center">
+            {stats.present === stats.total ? (
+              <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 px-4 py-2 text-sm font-semibold">
+                ✅ All {stats.total} members are present
+              </Badge>
+            ) : stats.absent === stats.total ? (
+              <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-4 py-2 text-sm font-semibold">
+                ❌ All {stats.total} members are absent
+              </Badge>
+            ) : (
+              <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 px-4 py-2 text-sm font-semibold">
+                📊 Mixed attendance: {stats.present} present, {stats.absent} absent
+              </Badge>
+            )}
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
