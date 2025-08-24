@@ -82,36 +82,55 @@ const SessionAttendance = ({ session: sessionProp, room: roomProp, onBack, onSet
 
   // Helper function to get field value from member
   const getMemberFieldValue = (member, fieldName) => {
-    // Check dynamic fields first
+    if (!member || !fieldName) return ''
+    
+    // Check dynamic fields first (exact match)
     if (member.dynamicFields && member.dynamicFields[fieldName]) {
       return member.dynamicFields[fieldName]
     }
+    
+    // Try case-insensitive match in dynamic fields
+    if (member.dynamicFields) {
+      const keys = Object.keys(member.dynamicFields)
+      const matchingKey = keys.find(key => key.toLowerCase() === fieldName.toLowerCase())
+      if (matchingKey && member.dynamicFields[matchingKey]) {
+        return member.dynamicFields[matchingKey]
+      }
+    }
+    
     // Fall back to legacy fields
     return member[fieldName] || ''
   }
 
   // Helper function to get primary field value (main identifier)
   const getMemberPrimaryValue = (member) => {
-    const primaryField = room?.fieldConfiguration?.primaryField || 'name'
-    const value = getMemberFieldValue(member, primaryField)
+    if (!member) return 'Unknown Member'
     
-    // If primary field is empty, try to find any non-empty field as fallback
-    if (!value) {
-      const fields = room?.fieldConfiguration?.fields || [
-        { name: 'name' }, { name: 'email' }, { name: 'studentid' }, { name: 'phone' }
-      ]
-      
-      for (const field of fields) {
-        const fallbackValue = getMemberFieldValue(member, field.name)
-        if (fallbackValue) {
-          return fallbackValue
-        }
-      }
-      
-      return 'Unknown Member'
+    // If we have dynamic fields, try the first available value
+    if (member.dynamicFields && Object.keys(member.dynamicFields).length > 0) {
+      const firstValue = Object.values(member.dynamicFields)[0]
+      if (firstValue) return firstValue
     }
     
-    return value
+    // Try room configuration primary field
+    const primaryField = room?.fieldConfiguration?.primaryField || 'name'
+    const value = getMemberFieldValue(member, primaryField)
+    if (value) return value
+    
+    // Try common field names
+    const commonFields = ['name', 'Name', 'email', 'Email', 'studentid', 'phone']
+    for (const fieldName of commonFields) {
+      const fieldValue = getMemberFieldValue(member, fieldName)
+      if (fieldValue) return fieldValue
+    }
+    
+    // Last resort - try any legacy field
+    if (member.name) return member.name
+    if (member.email) return member.email
+    if (member.studentid) return member.studentid
+    if (member.phone) return member.phone
+    
+    return 'Unknown Member'
   }
 
   // Helper function to get all searchable field values
@@ -494,12 +513,19 @@ const SessionAttendance = ({ session: sessionProp, room: roomProp, onBack, onSet
           rowData[fieldName] = getMemberFieldValue(member, field.name)
         })
       } else {
-        // Fallback to legacy fields if no configuration
-        rowData.Name = getMemberFieldValue(member, 'name')
-        rowData.Email = getMemberFieldValue(member, 'email')
-        rowData.Phone = getMemberFieldValue(member, 'phone')
-        rowData.Department = getMemberFieldValue(member, 'department')
-        rowData.StudentId = getMemberFieldValue(member, 'studentid')
+        // If no room configuration, use actual dynamic field names
+        if (member.dynamicFields) {
+          Object.keys(member.dynamicFields).forEach(key => {
+            rowData[key] = member.dynamicFields[key]
+          })
+        } else {
+          // Fallback to legacy fields if no dynamic fields
+          rowData.Name = getMemberFieldValue(member, 'name')
+          rowData.Email = getMemberFieldValue(member, 'email')
+          rowData.Phone = getMemberFieldValue(member, 'phone')
+          rowData.Department = getMemberFieldValue(member, 'department')
+          rowData.StudentId = getMemberFieldValue(member, 'studentid')
+        }
       }
       
       // Add attendance specific fields
@@ -1054,19 +1080,34 @@ const SessionAttendance = ({ session: sessionProp, room: roomProp, onBack, onSet
                               ) : null
                             })
                         ) : (
-                          // Fallback to legacy field display
-                          <>
-                            <span className="break-words">{getMemberFieldValue(member, 'email') || 'No email'}</span>
-                            {getMemberFieldValue(member, 'phone') && (
-                              <span>{getMemberFieldValue(member, 'phone')}</span>
-                            )}
-                            {getMemberFieldValue(member, 'department') && (
-                              <span>{getMemberFieldValue(member, 'department')}</span>
-                            )}
-                            {getMemberFieldValue(member, 'studentid') && (
-                              <span>ID: {getMemberFieldValue(member, 'studentid')}</span>
-                            )}
-                          </>
+                          // Show actual dynamic fields if available
+                          member.dynamicFields && Object.keys(member.dynamicFields).length > 0 ? (
+                            Object.entries(member.dynamicFields).map(([key, value]) => (
+                              key !== 'Name' && value ? (
+                                <span key={key} className="break-words">
+                                  {key === 'personal mail ID' || key.toLowerCase().includes('email') || key.toLowerCase().includes('mail') ? 
+                                    value : 
+                                    key.toLowerCase().includes('roll') || key.toLowerCase().includes('id') || key.toLowerCase().includes('no') ?
+                                    `${key}: ${value}` : 
+                                    value}
+                                </span>
+                              ) : null
+                            ))
+                          ) : (
+                            // Fallback to legacy field display
+                            <>
+                              <span className="break-words">{getMemberFieldValue(member, 'email') || 'No email'}</span>
+                              {getMemberFieldValue(member, 'phone') && (
+                                <span>{getMemberFieldValue(member, 'phone')}</span>
+                              )}
+                              {getMemberFieldValue(member, 'department') && (
+                                <span>{getMemberFieldValue(member, 'department')}</span>
+                              )}
+                              {getMemberFieldValue(member, 'studentid') && (
+                                <span>ID: {getMemberFieldValue(member, 'studentid')}</span>
+                              )}
+                            </>
+                          )
                         )}
                       </div>
                       <div className="block sm:hidden text-xs text-slate-500 mt-2">

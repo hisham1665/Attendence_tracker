@@ -18,6 +18,10 @@ const DashboardApp = () => {
 
   const handleSessionSelect = (session) => {
     setSelectedSession(session)
+    // If session comes with room data (e.g., from Settings), set the room as well
+    if (session.room) {
+      setSelectedRoom(session.room)
+    }
     setCurrentView('session-attendance')
   }
 
