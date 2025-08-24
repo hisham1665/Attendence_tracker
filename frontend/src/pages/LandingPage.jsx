@@ -249,16 +249,6 @@ const LandingPage = () => {
                   Start Free Today
                   <ArrowRight className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
-                
-                <Button 
-                  onClick={() => navigate('/login')}
-                  variant="outline"
-                  size="lg"
-                  className="border-2 border-slate-300 hover:border-slate-400 px-8 py-4 text-lg font-semibold rounded-xl hover:shadow-lg transform hover:scale-105 transition-all duration-300 group"
-                >
-                  <Play className="h-5 w-5 mr-2" />
-                  Sign In
-                </Button>
               </div>
               
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-4">
