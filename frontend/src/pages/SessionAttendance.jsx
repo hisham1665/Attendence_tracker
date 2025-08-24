@@ -25,7 +25,10 @@ import {
   RefreshCw,
   Lock,
   Unlock,
-  FileText
+  FileText,
+  UserPlus,
+  UserMinus,
+  Loader2
 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
@@ -54,6 +57,7 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
   const [members, setMembers] = useState([])
   const [attendance, setAttendance] = useState([])
   const [loading, setLoading] = useState(true)
+  const [bulkOperationLoading, setBulkOperationLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('all')
   const [attendanceFilter, setAttendanceFilter] = useState('all')
   const [sessionData, setSessionData] = useState(session)
@@ -280,6 +284,156 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
     }
   }
 
+  const markAllAsPresent = async () => {
+    // Check if there are any members
+    if (members.length === 0) {
+      alert('No members found in this room. Please add members first.')
+      return
+    }
+
+    // Confirmation dialog
+    const isConfirmed = window.confirm(
+      `📋 Mark All as Present\n\n` +
+      `This will mark all ${members.length} members as PRESENT for this session.\n\n` +
+      `⚠️ Note: This will overwrite any existing attendance records.\n\n` +
+      `Do you want to continue?`
+    )
+    
+    if (!isConfirmed) {
+      return
+    }
+
+    // Set loading state
+    setBulkOperationLoading(true)
+
+    // OPTIMISTIC UPDATE: Update UI immediately
+    const optimisticAttendance = members.map(member => ({
+      _id: `temp_${member._id}_${Date.now()}`,
+      member: member._id,
+      session: sessionData._id,
+      status: 'present',
+      timestamp: new Date().toISOString()
+    }))
+    
+    // Update UI state immediately
+    setAttendance(optimisticAttendance)
+
+    try {
+      const token = localStorage.getItem('token')
+      
+      // Create bulk attendance data for all members
+      const bulkAttendanceData = members.map(member => ({
+        member: member._id,
+        session: sessionData._id,
+        status: 'present'
+      }))
+      
+      // Backend update (async)
+      const response = await fetch('/api/attendance/bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ attendanceRecords: bulkAttendanceData }),
+      })
+      
+      if (response.ok) {
+        // Backend successful - refresh to get real data
+        await fetchAttendance()
+      } else {
+        // Backend failed - revert optimistic update
+        await fetchAttendance()
+        const errorData = await response.json()
+        console.error('Failed to mark all as present:', errorData.message)
+        alert('❌ Error: Failed to mark all as present\n\n' + errorData.message)
+      }
+    } catch (error) {
+      // Network error - revert optimistic update
+      await fetchAttendance()
+      console.error('Error marking all as present:', error)
+      alert('❌ Network Error\n\nPlease check your connection and try again.')
+    } finally {
+      // Always clear loading state
+      setBulkOperationLoading(false)
+    }
+  }
+
+  const markAllAsAbsent = async () => {
+    // Check if there are any members
+    if (members.length === 0) {
+      alert('No members found in this room. Please add members first.')
+      return
+    }
+
+    // Confirmation dialog
+    const isConfirmed = window.confirm(
+      `📋 Mark All as Absent\n\n` +
+      `This will mark all ${members.length} members as ABSENT for this session.\n\n` +
+      `⚠️ Note: This will overwrite any existing attendance records.\n\n` +
+      `Do you want to continue?`
+    )
+    
+    if (!isConfirmed) {
+      return
+    }
+
+    // Set loading state
+    setBulkOperationLoading(true)
+
+    // OPTIMISTIC UPDATE: Update UI immediately
+    const optimisticAttendance = members.map(member => ({
+      _id: `temp_${member._id}_${Date.now()}`,
+      member: member._id,
+      session: sessionData._id,
+      status: 'absent',
+      timestamp: new Date().toISOString()
+    }))
+    
+    // Update UI state immediately
+    setAttendance(optimisticAttendance)
+
+    try {
+      const token = localStorage.getItem('token')
+      
+      // Create bulk attendance data for all members
+      const bulkAttendanceData = members.map(member => ({
+        member: member._id,
+        session: sessionData._id,
+        status: 'absent'
+      }))
+      
+      // Backend update (async)
+      const response = await fetch('/api/attendance/bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ attendanceRecords: bulkAttendanceData }),
+      })
+      
+      if (response.ok) {
+        // Backend successful - refresh to get real data
+        await fetchAttendance()
+      } else {
+        // Backend failed - revert optimistic update
+        await fetchAttendance()
+        const errorData = await response.json()
+        console.error('Failed to mark all as absent:', errorData.message)
+        alert('❌ Error: Failed to mark all as absent\n\n' + errorData.message)
+      }
+    } catch (error) {
+      // Network error - revert optimistic update
+      await fetchAttendance()
+      console.error('Error marking all as absent:', error)
+      alert('❌ Network Error\n\nPlease check your connection and try again.')
+    } finally {
+      // Always clear loading state
+      setBulkOperationLoading(false)
+    }
+  }
+
   const exportToCSV = () => {
     const csvData = membersWithAttendance.map(member => {
       const rowData = {}
@@ -382,7 +536,6 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
     const tableData = []
     
     membersWithAttendance.forEach((member, index) => {
-      console.log('Member data:', member) // Debug log
       
       const row = [(index + 1).toString()] // Start with S.No
       
@@ -399,9 +552,6 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
       
       tableData.push(row)
     })
-
-    console.log('Headers:', headers) // Debug log
-    console.log('Table data:', tableData) // Debug log
 
     // Create dynamic column styles
     const columnStyles = {}
@@ -610,6 +760,47 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
                 </>
               )}
             </Button>
+            
+            {/* Bulk Attendance Buttons - Only show when session is active */}
+            {(sessionData.status || 'active') === 'active' && (
+              <>
+                <Button 
+                  onClick={markAllAsPresent}
+                  className="bg-green-600 hover:bg-green-700 text-white border-2 border-green-600 w-full sm:w-auto"
+                  disabled={members.length === 0 || bulkOperationLoading}
+                >
+                  {bulkOperationLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <UserPlus className="h-4 w-4 mr-2" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {bulkOperationLoading ? 'Processing...' : 'Mark All Present'}
+                  </span>
+                  <span className="sm:hidden">
+                    {bulkOperationLoading ? 'Wait...' : 'All Present'}
+                  </span>
+                </Button>
+                
+                <Button 
+                  onClick={markAllAsAbsent}
+                  className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 w-full sm:w-auto"
+                  disabled={members.length === 0 || bulkOperationLoading}
+                >
+                  {bulkOperationLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <UserMinus className="h-4 w-4 mr-2" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {bulkOperationLoading ? 'Processing...' : 'Mark All Absent'}
+                  </span>
+                  <span className="sm:hidden">
+                    {bulkOperationLoading ? 'Wait...' : 'All Absent'}
+                  </span>
+                </Button>
+              </>
+            )}
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

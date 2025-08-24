@@ -5,9 +5,6 @@ import Session from '../models/SessionModel.js';
 // Create a new room
 export const createRoom = async (req, res) => {
   try {
-    // Debug logging
-    console.log('User from middleware:', req.user);
-    
     if (!req.user || !req.user._id) {
       return res.status(401).json({ message: 'User not authenticated' });
     }

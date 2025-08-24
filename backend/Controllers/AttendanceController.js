@@ -44,8 +44,6 @@ export const markAttendance = async (req, res) => {
   try {
     const { member, session, status } = req.body
     
-    console.log('Marking attendance:', { member, session, status })
-    
     // Check if session exists and is active
     const sessionDoc = await Session.findById(session)
     if (!sessionDoc) {
@@ -64,7 +62,6 @@ export const markAttendance = async (req, res) => {
       attendance.status = status
       attendance.timestamp = new Date()
       await attendance.save()
-      console.log('Updated existing attendance:', attendance._id)
     } else {
       // Create new record
       attendance = new AttendenceModel({
@@ -74,7 +71,6 @@ export const markAttendance = async (req, res) => {
         timestamp: new Date()
       })
       await attendance.save()
-      console.log('Created new attendance:', attendance._id)
     }
     
     // Populate the response

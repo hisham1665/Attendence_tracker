@@ -108,7 +108,6 @@ export const uploadMembersFile = async (req, res) => {
     let mapping
     try {
       mapping = JSON.parse(fieldMapping)
-      console.log('Field mapping:', mapping)
     } catch (error) {
       return res.status(400).json({ message: 'Invalid field mapping format' })
     }
@@ -120,27 +119,20 @@ export const uploadMembersFile = async (req, res) => {
     
     // Parse file based on extension
     try {
-      console.log(`Parsing ${fileExtension} file: ${req.file.originalname}`)
-      
       switch (fileExtension) {
         case '.csv':
           fileData = await parseCSV(filePath)
-          console.log(`CSV parsed successfully: ${fileData.length} rows`)
           break
         case '.xlsx':
         case '.xls':
           fileData = parseExcel(filePath)
-          console.log(`Excel parsed successfully: ${fileData.length} rows`)
           break
         default:
           throw new Error('Unsupported file format. Only CSV and Excel files are supported.')
       }
       
-      // Log sample of parsed data for debugging
-      if (fileData.length > 0) {
-        console.log('Sample parsed data:', JSON.stringify(fileData[0], null, 2))
-        console.log('Available columns:', Object.keys(fileData[0]))
-      } else {
+      // Validate data exists
+      if (fileData.length === 0) {
         throw new Error('No data found in file')
       }
       
@@ -154,8 +146,6 @@ export const uploadMembersFile = async (req, res) => {
     // Process and validate data
     const processedMembers = []
     const errors = []
-    
-    console.log(`Processing ${fileData.length} rows with mapping:`, mapping)
     
     for (let i = 0; i < fileData.length; i++) {
       const row = fileData[i]
