@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { Button } from '@/components/ui/button'
@@ -32,9 +32,9 @@ import {
 } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
-const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
-  // Safety check for missing session or room data
-  if (!session) {
+const SessionAttendance = ({ session: sessionProp, room: roomProp, onBack, onSettingsClick }) => {
+  // Safety check for missing data
+  if (!sessionProp || !roomProp) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-purple-900/20 dark:to-slate-900">
         <Navbar title="Session Not Found" subtitle="Please select a valid session" onSettingsClick={onSettingsClick} />
@@ -53,14 +53,32 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
     )
   }
 
+  const [session, setSession] = useState(sessionProp)
+  const [room, setRoom] = useState(roomProp)
+  const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [members, setMembers] = useState([])
   const [attendance, setAttendance] = useState([])
-  const [loading, setLoading] = useState(true)
   const [bulkOperationLoading, setBulkOperationLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('all')
   const [attendanceFilter, setAttendanceFilter] = useState('all')
-  const [sessionData, setSessionData] = useState(session)
+
+  // Helper function to get member ID consistently
+  const getMemberId = (attendance) => {
+    if (!attendance || !attendance.member) {
+      return null
+    }
+    if (typeof attendance.member === 'object' && attendance.member?._id) {
+      return attendance.member._id  // Extract ID from populated object
+    }
+    return attendance.member        // Return ID directly if it's a string
+  }
+
+  // Update state when props change
+  useEffect(() => {
+    setSession(sessionProp)
+    setRoom(roomProp)
+  }, [sessionProp, roomProp])
 
   // Helper function to get field value from member
   const getMemberFieldValue = (member, fieldName) => {
@@ -103,30 +121,15 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
   }
 
   useEffect(() => {
-    fetchSessionData()
-    fetchMembers()
-    fetchAttendance()
-  }, [sessionData._id])
-
-  const fetchSessionData = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`/api/sessions/${sessionData._id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setSessionData(data)
-      }
-    } catch (error) {
-      console.error('Error fetching session data:', error)
+    if (session?._id && room?._id) {
+      fetchMembers()
+      fetchAttendance()
     }
-  }
+  }, [session, room])
 
   const fetchMembers = async () => {
+    if (!room?._id) return
+    
     try {
       const token = localStorage.getItem('token')
       const response = await fetch(`/api/members?room=${room._id}`, {
@@ -145,9 +148,11 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
   }
 
   const fetchAttendance = async () => {
+    if (!session?._id) return
+    
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/attendance?session=${sessionData._id}`, {
+      const response = await fetch(`/api/attendance?session=${session._id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -164,57 +169,51 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
     }
   }
 
-  const toggleAttendance = async (memberId, status) => {
+  const toggleAttendance = useCallback(async (memberId, status) => {
     // Check if session is closed
-    if ((sessionData.status || 'active') === 'closed') {
+    if ((session.status || 'active') === 'closed') {
       alert('Cannot mark attendance. Session is closed.')
       return
     }
 
-    // Helper function to get member ID consistently
-    const getMemberId = (attendance) => {
-      if (typeof attendance.member === 'object' && attendance.member._id) {
-        return attendance.member._id  // Extract ID from populated object
-      }
-      return attendance.member        // Return ID directly if it's a string
-    }
-
     // Find existing attendance record
-    const existingAttendance = attendance.find(a => getMemberId(a) === memberId)
+    const existingAttendance = attendance.find(a => {
+      const attendanceMemberId = getMemberId(a)
+      return attendanceMemberId && attendanceMemberId === memberId
+    })
     
     // If status is the same, no need to update
     if (existingAttendance && existingAttendance.status === status) {
       return
     }
 
-    // Store previous state for rollback
-    const previousAttendance = [...attendance]
+    // OPTIMISTIC UPDATE - Update UI immediately for responsiveness
+    const optimisticRecord = {
+      _id: existingAttendance?._id || `temp-${Date.now()}`,
+      member: memberId,
+      session: session._id,
+      status: status
+    }
 
-    // Optimized update - only update the specific record
+    // Update UI immediately
     setAttendance(prevAttendance => {
-      const existingIndex = prevAttendance.findIndex(a => getMemberId(a) === memberId)
+      const existingIndex = prevAttendance.findIndex(a => {
+        const attendanceMemberId = getMemberId(a)
+        return attendanceMemberId && attendanceMemberId === memberId
+      })
       
       if (existingIndex >= 0) {
-        // Update existing record without recreating the entire array
+        // Update existing record
         const updated = [...prevAttendance]
-        updated[existingIndex] = { 
-          ...updated[existingIndex], 
-          status,
-          timestamp: new Date().toISOString() // Update timestamp
-        }
+        updated[existingIndex] = { ...updated[existingIndex], ...optimisticRecord }
         return updated
       } else {
         // Add new record
-        return [...prevAttendance, {
-          _id: `temp_${Date.now()}`,
-          member: memberId,
-          session: sessionData._id,
-          status,
-          timestamp: new Date().toISOString()
-        }]
+        return [...prevAttendance, optimisticRecord]
       }
     })
 
+    // Then make API call in background
     try {
       const token = localStorage.getItem('token')
       const response = await fetch('/api/attendance', {
@@ -225,7 +224,7 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
         },
         body: JSON.stringify({
           member: memberId,
-          session: sessionData._id,
+          session: session._id,
           status: status
         }),
       })
@@ -234,9 +233,12 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
         // Get the updated attendance record from response
         const updatedAttendanceRecord = await response.json()
         
-        // Update only the specific record instead of fetching all
+        // Update with real data from server
         setAttendance(prevAttendance => {
-          const existingIndex = prevAttendance.findIndex(a => getMemberId(a) === memberId)
+          const existingIndex = prevAttendance.findIndex(a => {
+            const attendanceMemberId = getMemberId(a)
+            return attendanceMemberId && attendanceMemberId === memberId
+          })
           if (existingIndex >= 0) {
             const updated = [...prevAttendance]
             updated[existingIndex] = updatedAttendanceRecord
@@ -245,24 +247,56 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
           return [...prevAttendance, updatedAttendanceRecord]
         })
       } else {
-        // Revert to previous state on error
-        setAttendance(previousAttendance)
+        // Revert optimistic update on error
+        setAttendance(prevAttendance => {
+          const existingIndex = prevAttendance.findIndex(a => {
+            const attendanceMemberId = getMemberId(a)
+            return attendanceMemberId && attendanceMemberId === memberId
+          })
+          if (existingIndex >= 0 && existingAttendance) {
+            // Restore original record
+            const updated = [...prevAttendance]
+            updated[existingIndex] = existingAttendance
+            return updated
+          } else if (existingIndex >= 0) {
+            // Remove the optimistic record
+            return prevAttendance.filter((_, index) => index !== existingIndex)
+          }
+          return prevAttendance
+        })
+        
         const errorData = await response.json()
         console.error('Failed to update attendance:', errorData.message)
         alert('Failed to update attendance: ' + errorData.message)
       }
     } catch (error) {
-      // Revert to previous state on error
-      setAttendance(previousAttendance)
-      console.error('Error updating attendance:', error)
+      // Revert optimistic update on network error
+      setAttendance(prevAttendance => {
+        const existingIndex = prevAttendance.findIndex(a => {
+          const attendanceMemberId = getMemberId(a)
+          return attendanceMemberId && attendanceMemberId === memberId
+        })
+        if (existingIndex >= 0 && existingAttendance) {
+          // Restore original record
+          const updated = [...prevAttendance]
+          updated[existingIndex] = existingAttendance
+          return updated
+        } else if (existingIndex >= 0) {
+          // Remove the optimistic record
+          return prevAttendance.filter((_, index) => index !== existingIndex)
+        }
+        return prevAttendance
+      })
+      
+      console.error('Network error updating attendance:', error)
       alert('Network error. Please try again.')
     }
-  }
+  }, [attendance, session._id, session.status, getMemberId])
 
   const toggleSessionStatus = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/sessions/${sessionData._id}/toggle-status`, {
+      const response = await fetch(`/api/sessions/${session._id}/toggle-status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -272,7 +306,7 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
       if (response.ok) {
         const updatedSession = await response.json()
         // Update local session state
-        setSessionData(updatedSession)
+        setSession(updatedSession)
       } else {
         const errorData = await response.json()
         console.error('Failed to toggle session status:', errorData.error)
@@ -284,7 +318,7 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
     }
   }
 
-  const markAllAsPresent = async () => {
+  const markAllAsPresent = useCallback(async () => {
     // Check if there are any members
     if (members.length === 0) {
       alert('No members found in this room. Please add members first.')
@@ -306,11 +340,11 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
     // Set loading state
     setBulkOperationLoading(true)
 
-    // OPTIMISTIC UPDATE: Update UI immediately
+    // OPTIMISTIC UPDATE: Update UI immediately for all members
     const optimisticAttendance = members.map(member => ({
       _id: `temp_${member._id}_${Date.now()}`,
       member: member._id,
-      session: sessionData._id,
+      session: session._id,
       status: 'present',
       timestamp: new Date().toISOString()
     }))
@@ -324,7 +358,7 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
       // Create bulk attendance data for all members
       const bulkAttendanceData = members.map(member => ({
         member: member._id,
-        session: sessionData._id,
+        session: session._id,
         status: 'present'
       }))
       
@@ -357,9 +391,9 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
       // Always clear loading state
       setBulkOperationLoading(false)
     }
-  }
+  }, [members, session._id])
 
-  const markAllAsAbsent = async () => {
+  const markAllAsAbsent = useCallback(async () => {
     // Check if there are any members
     if (members.length === 0) {
       alert('No members found in this room. Please add members first.')
@@ -385,7 +419,7 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
     const optimisticAttendance = members.map(member => ({
       _id: `temp_${member._id}_${Date.now()}`,
       member: member._id,
-      session: sessionData._id,
+      session: session._id,
       status: 'absent',
       timestamp: new Date().toISOString()
     }))
@@ -399,7 +433,7 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
       // Create bulk attendance data for all members
       const bulkAttendanceData = members.map(member => ({
         member: member._id,
-        session: sessionData._id,
+        session: session._id,
         status: 'absent'
       }))
       
@@ -432,9 +466,24 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
       // Always clear loading state
       setBulkOperationLoading(false)
     }
-  }
+  }, [members, session._id])
 
-  const exportToCSV = () => {
+  // Combine members with their attendance status
+  const membersWithAttendance = useMemo(() => {
+    return members.map(member => {
+      const memberAttendance = attendance.find(a => {
+        const attendanceMemberId = getMemberId(a)
+        return attendanceMemberId && attendanceMemberId === member._id
+      })
+      return {
+        ...member,
+        attendanceStatus: memberAttendance?.status || 'absent',
+        attendanceId: memberAttendance?._id
+      }
+    })
+  }, [members, attendance])
+
+  const exportToCSV = useCallback(() => {
     const csvData = membersWithAttendance.map(member => {
       const rowData = {}
       
@@ -455,8 +504,6 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
       
       // Add attendance specific fields
       rowData.Status = member.attendanceStatus
-      rowData.CheckInTime = member.checkInTime || ''
-      rowData.CheckOutTime = member.checkOutTime || ''
       
       return rowData
     })
@@ -470,15 +517,15 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${sessionData.title}_attendance_${new Date().toISOString().split('T')[0]}.csv`
+    a.download = `${session.title}_attendance_${new Date().toISOString().split('T')[0]}.csv`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     window.URL.revokeObjectURL(url)
-  }
+  }, [membersWithAttendance, room?.fieldConfiguration?.fields, session.title])
 
   // PDF Export - Simple Excel-like table
-  const exportToPDF = () => {
+  const exportToPDF = useCallback(() => {
     const doc = new jsPDF('p', 'mm', 'a4')
     const pageWidth = doc.internal.pageSize.getWidth()
     const pageHeight = doc.internal.pageSize.getHeight()
@@ -495,13 +542,13 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
     doc.setFont('helvetica', 'normal')
     doc.text(`Room: ${room.title}`, margin, currentY)
     currentY += 6
-    doc.text(`Session: ${sessionData.title}`, margin, currentY)
+    doc.text(`Session: ${session.title}`, margin, currentY)
     currentY += 6
     
     // Fix date formatting with proper error handling
     let dateText = 'N/A'
     try {
-      const dateToUse = sessionData.date || sessionData.createdAt || new Date()
+      const dateToUse = session.date || session.createdAt || new Date()
       const date = new Date(dateToUse)
       if (!isNaN(date.getTime())) {
         dateText = date.toLocaleDateString('en-US', {
@@ -615,31 +662,9 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
     })
 
     // Save the PDF
-    const fileName = `${sessionData.title}_attendance_${new Date().toISOString().split('T')[0]}.pdf`
+    const fileName = `${session.title}_attendance_${new Date().toISOString().split('T')[0]}.pdf`
     doc.save(fileName)
-  }
-
-  // Combine members with their attendance status
-  // Helper function to get member ID consistently (same as in toggleAttendance)
-  const getMemberId = (attendance) => {
-    if (typeof attendance.member === 'object' && attendance.member._id) {
-      return attendance.member._id  // Extract ID from populated object
-    }
-    return attendance.member        // Return ID directly if it's a string
-  }
-
-  const membersWithAttendance = useMemo(() => {
-    return members.map(member => {
-      const memberAttendance = attendance.find(a => getMemberId(a) === member._id)
-      return {
-        ...member,
-        attendanceStatus: memberAttendance?.status || 'absent',
-        checkInTime: memberAttendance?.checkInTime,
-        checkOutTime: memberAttendance?.checkOutTime,
-        attendanceId: memberAttendance?._id
-      }
-    })
-  }, [members, attendance])
+  }, [membersWithAttendance, room, session.title])
 
   // Filter members based on search and attendance status
   const filteredMembers = membersWithAttendance.filter(member => {
@@ -669,14 +694,6 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
   // Smart button visibility logic
   const shouldShowMarkAllPresent = stats.total > 0 && stats.present < stats.total // Not everyone is present
   const shouldShowMarkAllAbsent = stats.total > 0 && stats.absent < stats.total   // Not everyone is absent
-
-  const formatTime = (timeString) => {
-    if (!timeString) return '-'
-    return new Date(timeString).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -724,21 +741,21 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
             
             <div className="space-y-2">
               <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent break-words">
-                {sessionData.title}
+                {session.title}
               </h1>
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-slate-600 dark:text-slate-300">
                 <div className="flex items-center space-x-1">
                   <Calendar className="h-4 w-4" />
-                  <span className="text-sm sm:text-base">{formatDate(sessionData.date)}</span>
+                  <span className="text-sm sm:text-base">{formatDate(session.date)}</span>
                 </div>
-                {sessionData.location && (
+                {session.location && (
                   <div className="flex items-center space-x-1">
                     <MapPin className="h-4 w-4" />
-                    <span className="text-sm sm:text-base">{sessionData.location}</span>
+                    <span className="text-sm sm:text-base">{session.location}</span>
                   </div>
                 )}
-                <Badge className={getStatusColor(sessionData.status || 'active')}>
-                  {(sessionData.status || 'active').toUpperCase()}
+                <Badge className={getStatusColor(session.status || 'active')}>
+                  {(session.status || 'active').toUpperCase()}
                 </Badge>
               </div>
             </div>
@@ -748,9 +765,9 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
             <Button 
               variant="outline"
               onClick={toggleSessionStatus}
-              className={`border-2 w-full sm:w-auto ${(sessionData.status || 'active') === 'closed' ? 'border-red-500 text-red-600 hover:bg-red-50' : 'border-green-500 text-green-600 hover:bg-green-50'}`}
+              className={`border-2 w-full sm:w-auto ${(session.status || 'active') === 'closed' ? 'border-red-500 text-red-600 hover:bg-red-50' : 'border-green-500 text-green-600 hover:bg-green-50'}`}
             >
-              {(sessionData.status || 'active') === 'closed' ? (
+              {(session.status || 'active') === 'closed' ? (
                 <>
                   <Unlock className="h-4 w-4 mr-2" />
                   <span className="hidden sm:inline">Reopen Session</span>
@@ -766,7 +783,7 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
             </Button>
             
             {/* Bulk Attendance Buttons - Only show when session is active and when buttons are useful */}
-            {(sessionData.status || 'active') === 'active' && (
+            {(session.status || 'active') === 'active' && (
               <>
                 {shouldShowMarkAllPresent && (
                   <Button 
@@ -954,12 +971,12 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
           <CardHeader>
             <CardTitle>Member Attendance</CardTitle>
             <CardDescription>
-              {sessionData.status === 'closed' 
+              {session.status === 'closed' 
                 ? 'Session is closed. Attendance cannot be modified. Reopen the session to make changes.' 
                 : 'Mark attendance for each member. Click the status buttons to update attendance.'
               }
             </CardDescription>
-            {sessionData.status === 'closed' && (
+            {session.status === 'closed' && (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mt-2">
                 <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
                   <Lock className="h-4 w-4" />
@@ -992,13 +1009,13 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
                   <div 
                     key={member._id} 
                     className={`flex items-center justify-between p-4 border rounded-lg transition-colors ${
-                      sessionData.status === 'closed' 
+                      session.status === 'closed' 
                         ? 'bg-gray-50 dark:bg-gray-800 opacity-60 cursor-not-allowed' 
                         : 'hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer sm:cursor-default'
                     }`}
                     onClick={() => {
                       // On mobile, clicking the card toggles between present and absent (if session is active)
-                      if (window.innerWidth < 640 && sessionData.status === 'active') {
+                      if (window.innerWidth < 640 && session.status === 'active') {
                         const newStatus = member.attendanceStatus === 'present' ? 'absent' : 'present'
                         toggleAttendance(member._id, newStatus)
                       }
@@ -1052,18 +1069,8 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
                           </>
                         )}
                       </div>
-                      {(member.checkInTime || member.checkOutTime) && (
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs text-slate-500">
-                          {member.checkInTime && (
-                            <span>Check-in: {formatTime(member.checkInTime)}</span>
-                          )}
-                          {member.checkOutTime && (
-                            <span>Check-out: {formatTime(member.checkOutTime)}</span>
-                          )}
-                        </div>
-                      )}
                       <div className="block sm:hidden text-xs text-slate-500 mt-2">
-                        {sessionData.status === 'closed' ? 'Session is closed' : 'Tap to toggle attendance'}
+                        {session.status === 'closed' ? 'Session is closed' : 'Tap to toggle attendance'}
                       </div>
                     </div>
                     
@@ -1074,13 +1081,13 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
                         variant={member.attendanceStatus === 'present' ? 'default' : 'outline'}
                         onClick={() => toggleAttendance(member._id, 'present')}
                         className={`flex items-center gap-2 transition-all duration-200 ${
-                          sessionData.status === 'closed' 
+                          session.status === 'closed' 
                             ? 'opacity-50 cursor-not-allowed border-gray-200 text-gray-400 bg-gray-50' 
                             : member.attendanceStatus === 'present' 
                               ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl border-green-600' 
                               : 'border-green-500 text-green-700 hover:bg-green-100 hover:border-green-600 bg-white shadow-md hover:shadow-lg'
                         }`}
-                        disabled={loading || sessionData.status === 'closed' || member.attendanceStatus === 'present'}
+                        disabled={loading || session.status === 'closed' || member.attendanceStatus === 'present'}
                       >
                         <CheckCircle className="h-4 w-4" />
                         Present
@@ -1090,13 +1097,13 @@ const SessionAttendance = ({ session, room, onBack, onSettingsClick }) => {
                         variant={member.attendanceStatus === 'absent' ? 'default' : 'outline'}
                         onClick={() => toggleAttendance(member._id, 'absent')}
                         className={`flex items-center gap-2 transition-all duration-200 ${
-                          sessionData.status === 'closed' 
+                          session.status === 'closed' 
                             ? 'opacity-50 cursor-not-allowed border-gray-200 text-gray-400 bg-gray-50' 
                             : member.attendanceStatus === 'absent' 
                               ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl border-red-600' 
                               : 'border-red-500 text-red-700 hover:bg-red-100 hover:border-red-600 bg-white shadow-md hover:shadow-lg'
                         }`}
-                        disabled={loading || sessionData.status === 'closed' || member.attendanceStatus === 'absent'}
+                        disabled={loading || session.status === 'closed' || member.attendanceStatus === 'absent'}
                       >
                         <XCircle className="h-4 w-4" />
                         Absent

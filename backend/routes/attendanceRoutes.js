@@ -3,7 +3,6 @@ import {
   getAttendance,
   getAttendanceById,
   markAttendance,
-  markCheckOut,
   bulkMarkAttendance,
   getAttendanceStats,
   deleteAttendance
@@ -23,9 +22,6 @@ router.get('/:id', getAttendanceById)
 
 // POST /api/attendance - Mark attendance (create or update)
 router.post('/', markAttendance)
-
-// POST /api/attendance/checkout - Mark check-out time
-router.post('/checkout', markCheckOut)
 
 // POST /api/attendance/bulk - Bulk mark attendance
 router.post('/bulk', bulkMarkAttendance)

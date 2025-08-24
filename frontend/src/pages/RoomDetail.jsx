@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -47,11 +47,11 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
     )
   }
 
+  // Optimized state management
   const [searchTerm, setSearchTerm] = useState('')
   const [sessions, setSessions] = useState([])
   const [members, setMembers] = useState([])
   const [attendanceData, setAttendanceData] = useState([])
-  const [loading, setLoading] = useState(true)
   const [isCreateSessionModalOpen, setIsCreateSessionModalOpen] = useState(false)
   const [isEditSessionModalOpen, setIsEditSessionModalOpen] = useState(false)
   const [editingSession, setEditingSession] = useState(null)
@@ -91,10 +91,13 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
     }
   }, [room])
 
-  const fetchRoomData = async () => {
+  // Optimized fetch functions with useCallback
+  const fetchRoomData = useCallback(async () => {
+    if (!roomData?._id) return
+    
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/rooms/${room._id}`, {
+      const response = await fetch(`/api/rooms/${roomData._id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -107,18 +110,14 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
     } catch (error) {
       console.error('Error fetching room data:', error)
     }
-  }
+  }, [roomData?._id])
 
-  useEffect(() => {
-    fetchSessions()
-    fetchMembers()
-    fetchAllAttendance()
-  }, [room._id])
-
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
+    if (!roomData?._id) return
+    
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/sessions?room=${room._id}`, {
+      const response = await fetch(`/api/sessions?room=${roomData._id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -130,15 +129,15 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
       }
     } catch (error) {
       console.error('Error fetching sessions:', error)
-    } finally {
-      setLoading(false)
     }
-  }
+  }, [roomData?._id])
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
+    if (!roomData?._id) return
+    
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`/api/members?room=${room._id}`, {
+      const response = await fetch(`/api/members?room=${roomData._id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -151,9 +150,9 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
     } catch (error) {
       console.error('Error fetching members:', error)
     }
-  }
+  }, [roomData?._id])
 
-  const fetchAllAttendance = async () => {
+  const fetchAllAttendance = useCallback(async () => {
     try {
       const token = localStorage.getItem('token')
       const response = await fetch(`/api/attendance`, {
@@ -168,9 +167,18 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
     } catch (error) {
       console.error('Error fetching attendance:', error)
     }
-  }
+  }, [])
 
-  const getSessionAttendanceCount = (sessionId) => {
+  useEffect(() => {
+    if (roomData?._id) {
+      fetchSessions()
+      fetchMembers()
+      fetchAllAttendance()
+    }
+  }, [roomData?._id, fetchSessions, fetchMembers, fetchAllAttendance])
+
+  // Optimized computed values with useMemo
+  const getSessionAttendanceCount = useCallback((sessionId) => {
     return attendanceData.filter(attendance => {
       // Skip if no session
       if (!attendance.session) {
@@ -184,9 +192,55 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
       
       return attendanceSessionId === sessionId && attendance.status === 'present'
     }).length
-  }
+  }, [attendanceData])
 
-  const handleCreateSession = async (sessionData) => {
+  // Memoized sessions with attendance data
+  const sessionsWithAttendance = useMemo(() => {
+    return sessions.map(session => ({
+      ...session,
+      attendanceCount: getSessionAttendanceCount(session._id)
+    }))
+  }, [sessions, getSessionAttendanceCount])
+
+  // Memoized filtered sessions
+  const filteredSessions = useMemo(() => {
+    return sessionsWithAttendance.filter(session =>
+      session.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      session.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [sessionsWithAttendance, searchTerm])
+
+  // Optimized utility functions with useCallback (defined early to avoid hoisting issues)
+  const getMemberFieldValue = useCallback((member, fieldName) => {
+    // Check dynamic fields first
+    if (member.dynamicFields && member.dynamicFields[fieldName]) {
+      return member.dynamicFields[fieldName]
+    }
+    // Fall back to legacy fields
+    return member[fieldName] || '-'
+  }, [])
+
+  // Helper function to get display name for field
+  const getFieldDisplayName = useCallback((fieldName) => {
+    return fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/([A-Z])/g, ' $1')
+  }, [])
+
+  // Memoized filtered members
+  const filteredMembers = useMemo(() => {
+    return members.filter(member => {
+      // Get primary field value for search
+      const primaryField = roomData?.fieldConfiguration?.primaryField || 'name'
+      const primaryValue = getMemberFieldValue(member, primaryField)
+      
+      // Search in primary field and other common fields
+      return primaryValue.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             (member.email && member.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+             (member.phone && member.phone.toLowerCase().includes(searchTerm.toLowerCase())) ||
+             (member.department && member.department.toLowerCase().includes(searchTerm.toLowerCase()))
+    })
+  }, [members, searchTerm, roomData?.fieldConfiguration?.primaryField, getMemberFieldValue])
+
+  const handleCreateSession = useCallback(async (sessionData) => {
     try {
       const token = localStorage.getItem('token')
       const response = await fetch('/api/sessions', {
@@ -197,7 +251,7 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
         },
         body: JSON.stringify({
           ...sessionData,
-          room: room._id
+          room: roomData._id
           // user field automatically set by backend from JWT
         }),
       })
@@ -215,24 +269,9 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
       console.error('Error creating session:', error)
       alert('Network error. Please try again.')
     }
-  }
+  }, [roomData._id, fetchSessions, fetchAllAttendance])
 
-  // Helper function to get field value from member
-  const getMemberFieldValue = (member, fieldName) => {
-    // Check dynamic fields first
-    if (member.dynamicFields && member.dynamicFields[fieldName]) {
-      return member.dynamicFields[fieldName]
-    }
-    // Fall back to legacy fields
-    return member[fieldName] || '-'
-  }
-
-  // Helper function to get display name for field
-  const getFieldDisplayName = (fieldName) => {
-    return fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/([A-Z])/g, ' $1')
-  }
-
-  const handleUploadComplete = (result) => {
+  const handleUploadComplete = useCallback((result) => {
     // Refresh members list after successful upload
     fetchMembers()
     setIsUploadMembersModalOpen(false)
@@ -241,9 +280,9 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
     if (result.stats) {
       alert(`Upload complete! ${result.stats.successful} members added successfully.${result.stats.errors > 0 ? ` ${result.stats.errors} rows had errors.` : ''}`)
     }
-  }
+  }, [fetchMembers])
 
-  const handleDeleteSession = async (sessionId) => {
+  const handleDeleteSession = useCallback(async (sessionId) => {
     if (window.confirm('Are you sure you want to delete this session? This will also delete all attendance records for this session.')) {
       try {
         const token = localStorage.getItem('token')
@@ -264,7 +303,7 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
         alert('Error deleting session')
       }
     }
-  }
+  }, [fetchSessions, fetchAllAttendance])
 
   const handleEditSession = (session) => {
     setEditingSession(session)
@@ -308,9 +347,9 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
         },
         body: JSON.stringify({
           dynamicFields: newMember,
-          room: room._id,
+          room: roomData._id,
           // Also include legacy fields for backward compatibility
-          name: newMember[room?.fieldConfiguration?.primaryField] || newMember.name || '',
+          name: newMember[roomData?.fieldConfiguration?.primaryField] || newMember.name || '',
           email: newMember.email || '',
           phone: newMember.phone || '',
           department: newMember.department || '',
@@ -323,9 +362,9 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
         setIsAddMemberModalOpen(false)
         
         // Reset newMember based on current room configuration
-        if (room?.fieldConfiguration?.fields) {
+        if (roomData?.fieldConfiguration?.fields) {
           const resetMember = {}
-          room.fieldConfiguration.fields.forEach(field => {
+          roomData.fieldConfiguration.fields.forEach(field => {
             resetMember[field.name] = ''
           })
           setNewMember(resetMember)
@@ -370,29 +409,6 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
       }
     }
   }
-
-  const filteredSessions = sessions.filter(session => {
-    const title = (session.title || '').toLowerCase()
-    const name = (session.name || '').toLowerCase()
-    const searchLower = searchTerm.toLowerCase()
-    return title.includes(searchLower) || name.includes(searchLower)
-  })
-
-  // Add attendance count to sessions
-  const sessionsWithAttendance = filteredSessions.map(session => {
-    try {
-      return {
-        ...session,
-        attendanceCount: getSessionAttendanceCount(session._id)
-      }
-    } catch (error) {
-      console.error('Error calculating attendance:', error)
-      return {
-        ...session,
-        attendanceCount: 0  // Safe fallback
-      }
-    }
-  })
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -554,18 +570,16 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
         </div>
 
         {/* Sessions Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Card key={i} className="animate-pulse">
-                <CardContent className="p-6">
-                  <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-slate-200 rounded w-1/2 mb-4"></div>
-                  <div className="h-8 bg-slate-200 rounded"></div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        {sessionsWithAttendance.length === 0 ? (
+          <Card className="text-center p-8">
+            <CardContent>
+              <p className="text-gray-500 dark:text-gray-400 mb-4">No sessions found for this room</p>
+              <Button onClick={() => setIsCreateSessionModalOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create First Session
+              </Button>
+            </CardContent>
+          </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {sessionsWithAttendance.map((session) => (
@@ -676,7 +690,7 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
         )}
 
         {/* Empty State */}
-        {!loading && filteredSessions.length === 0 && (
+        {filteredSessions.length === 0 && (
           <Card className="text-center py-12">
             <CardContent>
               <div className="space-y-4">
@@ -745,11 +759,11 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      {room.fieldConfiguration?.fields?.map((field) => (
-                        <TableHead key={field.name} className={`font-semibold ${field.name === room.fieldConfiguration.primaryField ? 'w-[250px]' : ''}`}>
+                      {roomData.fieldConfiguration?.fields?.map((field) => (
+                        <TableHead key={field.name} className={`font-semibold ${field.name === roomData.fieldConfiguration.primaryField ? 'w-[250px]' : ''}`}>
                           {getFieldDisplayName(field.name)}
                           {field.required && <span className="text-red-500 ml-1">*</span>}
-                          {field.name === room.fieldConfiguration.primaryField && (
+                          {field.name === roomData.fieldConfiguration.primaryField && (
                             <Badge variant="outline" className="ml-2 text-xs">Primary</Badge>
                           )}
                         </TableHead>
@@ -769,9 +783,9 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
                   <TableBody>
                     {members.map((member) => (
                       <TableRow key={member._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                        {room.fieldConfiguration?.fields?.map((field) => (
-                          <TableCell key={field.name} className={field.name === room.fieldConfiguration.primaryField ? "font-medium" : "text-slate-600 dark:text-slate-400"}>
-                            {field.name === room.fieldConfiguration.primaryField ? (
+                        {roomData.fieldConfiguration?.fields?.map((field) => (
+                          <TableCell key={field.name} className={field.name === roomData.fieldConfiguration.primaryField ? "font-medium" : "text-slate-600 dark:text-slate-400"}>
+                            {field.name === roomData.fieldConfiguration.primaryField ? (
                               <div className="flex items-center space-x-3">
                                 <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
                                   {getMemberFieldValue(member, field.name).charAt(0).toUpperCase()}
@@ -813,7 +827,7 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
                             size="sm"
                             onClick={() => handleDeleteMember(
                               member._id, 
-                              getMemberFieldValue(member, room.fieldConfiguration?.primaryField || 'name')
+                              getMemberFieldValue(member, roomData.fieldConfiguration?.primaryField || 'name')
                             )}
                             className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                           >
@@ -864,14 +878,14 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            {room?.fieldConfiguration?.fields ? (
+            {roomData?.fieldConfiguration?.fields ? (
               // Dynamic fields based on room configuration
-              room.fieldConfiguration.fields.map((field) => (
+              roomData.fieldConfiguration.fields.map((field) => (
                 <div key={field.name} className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor={field.name} className="text-right">
                     {field.name.charAt(0).toUpperCase() + field.name.slice(1)}
                     {field.required && <span className="text-red-500 ml-1">*</span>}
-                    {field.name === room.fieldConfiguration.primaryField && (
+                    {field.name === roomData.fieldConfiguration.primaryField && (
                       <Badge variant="outline" className="ml-1 text-xs">Primary</Badge>
                     )}
                   </Label>
@@ -970,8 +984,8 @@ const RoomDetail = ({ room, onBack, onSessionSelect, onSettingsClick }) => {
               onClick={handleAddMember}
               disabled={(() => {
                 // Check if required fields are filled
-                if (room?.fieldConfiguration?.fields) {
-                  return room.fieldConfiguration.fields
+                if (roomData?.fieldConfiguration?.fields) {
+                  return roomData.fieldConfiguration.fields
                     .filter(field => field.required)
                     .some(field => !newMember[field.name]?.trim())
                 } else {

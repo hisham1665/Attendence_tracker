@@ -84,29 +84,6 @@ export const markAttendance = async (req, res) => {
   }
 }
 
-// Update check-out time
-export const markCheckOut = async (req, res) => {
-  try {
-    const { member, session, timestamp } = req.body
-    
-    const attendance = await AttendenceModel.findOne({ member, session })
-    
-    if (!attendance) {
-      return res.status(404).json({ message: 'Attendance record not found' })
-    }
-    
-    attendance.checkOutTime = timestamp || new Date()
-    await attendance.save()
-    
-    await attendance.populate('member', 'name email phone department studentid')
-    await attendance.populate('session', 'title date')
-    
-    res.json(attendance)
-  } catch (error) {
-    res.status(400).json({ message: error.message })
-  }
-}
-
 // Bulk mark attendance
 export const bulkMarkAttendance = async (req, res) => {
   try {
@@ -127,23 +104,13 @@ export const bulkMarkAttendance = async (req, res) => {
         attendance.status = status
         attendance.timestamp = timestamp || new Date()
         
-        if (status === 'present' || status === 'late') {
-          if (!attendance.checkInTime) {
-            attendance.checkInTime = timestamp || new Date()
-          }
-        } else if (status === 'absent') {
-          attendance.checkInTime = null
-          attendance.checkOutTime = null
-        }
-        
         await attendance.save()
       } else {
         attendance = new AttendenceModel({
           member,
           session,
           status,
-          timestamp: timestamp || new Date(),
-          checkInTime: (status === 'present' || status === 'late') ? (timestamp || new Date()) : null
+          timestamp: timestamp || new Date()
         })
         
         await attendance.save()

@@ -1,106 +1,52 @@
-import React, { useState } from 'react'
+import React from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
-import Dashboard from './pages/Dashboard'
-import RoomDetail from './pages/RoomDetail'
-import SessionAttendance from './pages/SessionAttendance'
-import Settings from './pages/Settings'
+import DashboardApp from './pages/DashboardApp'
+import NotFound from './pages/NotFound'
 import { useAuth } from './contexts/AuthContext'
 
+// Protected Route component
+function ProtectedRoute({ children }) {
+  const { user } = useAuth()
+  return user ? children : <Navigate to="/login" replace />
+}
+
+// Public Route component (redirect to dashboard if already logged in)
+function PublicRoute({ children }) {
+  const { user } = useAuth()
+  return !user ? children : <Navigate to="/dashboard" replace />
+}
 
 function AppContent() {
-  const { user } = useAuth()
-  const [currentView, setCurrentView] = useState('dashboard')
-  const [selectedRoom, setSelectedRoom] = useState(null)
-  const [selectedSession, setSelectedSession] = useState(null)
-
-  if (!user) {
-    return <LoginPage />
-  }
-
-  const handleRoomSelect = (room) => {
-    setSelectedRoom(room)
-    setCurrentView('room-detail')
-  }
-
-  const handleSessionSelect = (session) => {
-    setSelectedSession(session)
-    // Keep the current selectedRoom when navigating to session
-    // Don't overwrite it with session.room as it might be incomplete
-    setCurrentView('session-attendance')
-  }
-
-  const handleBackToDashboard = () => {
-    setCurrentView('dashboard')
-    setSelectedRoom(null)
-    setSelectedSession(null)
-  }
-
-  const handleBackToRoom = () => {
-    // Only navigate to room detail if we have a selected room
-    if (selectedRoom) {
-      setCurrentView('room-detail')
-      setSelectedSession(null)
-    } else {
-      // If no room selected, go back to dashboard
-      handleBackToDashboard()
-    }
-  }
-
-  const handleSettingsClick = () => {
-    setCurrentView('settings')
-  }
-
-  const handleBackFromSettings = () => {
-    setCurrentView('dashboard')
-  }
-
-  switch (currentView) {
-    case 'room-detail':
-      return (
-        <RoomDetail 
-          room={selectedRoom}
-          onBack={handleBackToDashboard}
-          onSessionSelect={handleSessionSelect}
-          onSettingsClick={handleSettingsClick}
-        />
-      )
-    
-    case 'session-attendance':
-      return (
-        <SessionAttendance 
-          session={selectedSession}
-          room={selectedRoom}
-          onBack={handleBackToRoom}
-          onSettingsClick={handleSettingsClick}
-        />
-      )
-    
-    case 'settings':
-      return (
-        <Settings 
-          onBack={handleBackFromSettings}
-          onRoomSelect={handleRoomSelect}
-          onSessionSelect={handleSessionSelect}
-        />
-      )
-    
-    default:
-      return (
-        <Dashboard 
-          onRoomSelect={handleRoomSelect}
-          onSettingsClick={handleSettingsClick}
-        />
-      )
-  }
+  return (
+    <Routes>
+      {/* Public routes */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+      
+      {/* Protected route - Dashboard handles all internal navigation */}
+      <Route path="/dashboard" element={
+        <ProtectedRoute>
+          <DashboardApp />
+        </ProtectedRoute>
+      } />
+      
+      {/* 404 route - must be last */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  )
 }
 
 function App() {
   return (
     <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
       <AuthProvider>
-        <AppContent />
+        <Router>
+          <AppContent />
+        </Router>
       </AuthProvider>
     </ThemeProvider>
   )
