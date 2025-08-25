@@ -1,6 +1,12 @@
 # 📚 HH Attendance Tracker
 
-A modern, full-stack web application for managing attendance in educational institutions and organizations. Built with React.js frontend and Node.js/Express backend with MongoDB database.
+A modern, production-ready full-stack web application for managing attendance in educational institutions and organizations. Built with React.js frontend and Node.js/Express backend with MongoDB database.
+
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Node](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen.svg)
+![React](https://img.shields.io/badge/react-18.x-blue.svg)
+![MongoDB](https://img.shields.io/badge/mongodb-7.x-green.svg)
 
 ## 🌟 Features
 

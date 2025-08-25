@@ -12,7 +12,7 @@ yarn-error.log*
 
 # Vite
 /.vite
-
+PRODUCTION-READY.md
 # Environment
 .env
 .env.local
