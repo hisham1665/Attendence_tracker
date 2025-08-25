@@ -2,6 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import path from 'path';
+import fs from 'fs';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -71,29 +72,76 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     message: 'HH Attendance Tracker API is running',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    port: PORT,
+    frontendServed: process.env.NODE_ENV === "production" ? "checking..." : "development mode"
+  });
+});
+
+// API status endpoint
+app.get('/api/status', (req, res) => {
+  res.status(200).json({
+    message: '🎉 HH Attendance Tracker API is live!',
+    version: '1.0.0',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    endpoints: {
+      health: '/api/health',
+      users: '/api/users/*',
+      rooms: '/api/rooms/*', 
+      members: '/api/members/*',
+      sessions: '/api/sessions/*',
+      attendance: '/api/attendance/*'
+    }
   });
 });
 
 // Production static file serving
 if(process.env.NODE_ENV === "production"){
-  // Serve static files with caching headers
-  app.use(express.static(path.join(__dirname, "frontend/dist"), {
-    maxAge: '1y', // Cache static assets for 1 year
-    etag: true,
-    setHeaders: (res, path) => {
-      if (path.endsWith('.html')) {
-        res.setHeader('Cache-Control', 'no-cache'); // Don't cache HTML files
-      }
+  // Check if frontend dist exists and serve accordingly
+  const frontendPath = path.join(__dirname, "..", "frontend", "dist");
+  const alternatePath = path.join(__dirname, "frontend", "dist");
+  
+  let staticPath = frontendPath;
+  try {
+    // Check if the standard path exists (when deployed from root)
+    fs.statSync(frontendPath);
+    console.log("✅ Frontend found at:", frontendPath);
+  } catch (err) {
+    try {
+      // Check alternate path (when deployed from backend)
+      fs.statSync(alternatePath);
+      staticPath = alternatePath;
+      console.log("✅ Frontend found at:", alternatePath);
+    } catch (err2) {
+      console.log("⚠️  Frontend dist not found. API-only mode.");
+      staticPath = null;
     }
-  }));
+  }
   
-  console.log("✅ Running in production mode. Serving frontend...");
-  
-  // Catch-all handler for SPA routing
-  app.get(/^\/(?!api).*/, (req, res) => {
-    res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
-  });
+  if (staticPath) {
+    // Serve static files with caching headers
+    app.use(express.static(staticPath, {
+      maxAge: '1y', // Cache static assets for 1 year
+      etag: true,
+      setHeaders: (res, path) => {
+        if (path.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache'); // Don't cache HTML files
+        }
+      }
+    }));
+    
+    console.log("✅ Running in production mode. Serving frontend...");
+    
+    // Catch-all handler for SPA routing
+    app.get(/^\/(?!api).*/, (req, res) => {
+      const indexPath = path.join(staticPath, "index.html");
+      res.sendFile(indexPath);
+    });
+  } else {
+    console.log("🔧 Running in API-only mode. Frontend not found.");
+  }
 }
 
 // Error handling middleware
