@@ -552,145 +552,181 @@ const SessionAttendance = ({ session: sessionProp, room: roomProp, onBack, onSet
 
   // PDF Export - Simple Excel-like table
   const exportToPDF = useCallback(() => {
-    const doc = new jsPDF('p', 'mm', 'a4')
-    const pageWidth = doc.internal.pageSize.getWidth()
-    const pageHeight = doc.internal.pageSize.getHeight()
-    const margin = 15
-    let currentY = margin
-
-    // Simple header
-    doc.setFontSize(16)
-    doc.setFont('helvetica', 'bold')
-    doc.text('HH Attendance Report', margin, currentY)
-    currentY += 10
-
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Room: ${room.title}`, margin, currentY)
-    currentY += 6
-    doc.text(`Session: ${session.title}`, margin, currentY)
-    currentY += 6
-    
-    // Fix date formatting with proper error handling
-    let dateText = 'N/A'
     try {
-      const dateToUse = session.date || session.createdAt || new Date()
-      const date = new Date(dateToUse)
-      if (!isNaN(date.getTime())) {
-        dateText = date.toLocaleDateString('en-US', {
+      console.log('Starting PDF export...')
+      console.log('Members with attendance:', membersWithAttendance.length)
+      console.log('Room data:', room)
+      console.log('Session data:', session)
+      
+      if (!membersWithAttendance || membersWithAttendance.length === 0) {
+        alert('No attendance data available to export')
+        return
+      }
+
+      const doc = new jsPDF('p', 'mm', 'a4')
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const margin = 15
+      let currentY = margin
+
+      // Simple header
+      doc.setFontSize(16)
+      doc.setFont('helvetica', 'bold')
+      doc.text('HH Attendance Report', margin, currentY)
+      currentY += 10
+
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Room: ${room?.title || 'Unknown Room'}`, margin, currentY)
+      currentY += 6
+      doc.text(`Session: ${session?.title || 'Unknown Session'}`, margin, currentY)
+      currentY += 6
+      
+      // Fix date formatting with proper error handling
+      let dateText = 'N/A'
+      try {
+        const dateToUse = session?.date || session?.createdAt || new Date()
+        const date = new Date(dateToUse)
+        if (!isNaN(date.getTime())) {
+          dateText = date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })
+        }
+      } catch (error) {
+        console.error('Date formatting error:', error)
+        dateText = new Date().toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'long',
           day: 'numeric'
         })
       }
-    } catch (error) {
-      console.error('Date formatting error:', error)
-      dateText = new Date().toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
-    }
-    
-    doc.text(`Date: ${dateText}`, margin, currentY)
-    currentY += 15
+      
+      doc.text(`Date: ${dateText}`, margin, currentY)
+      currentY += 15
 
-    // Prepare table data using dynamic field configuration
-    const headers = ['S.No']
-    
-    // Add dynamic headers from room configuration
-    if (room.fieldConfiguration?.fields) {
-      room.fieldConfiguration.fields.forEach(field => {
-        headers.push(field.name.charAt(0).toUpperCase() + field.name.slice(1))
-      })
-    }
-    headers.push('Status')
-    
-    const tableData = []
-    
-    membersWithAttendance.forEach((member, index) => {
+      // Prepare table data using dynamic field configuration
+      const headers = ['S.No']
       
-      const row = [(index + 1).toString()] // Start with S.No
-      
-      // Add data for each dynamic field
-      if (room.fieldConfiguration?.fields) {
+      // Add dynamic headers from room configuration
+      if (room?.fieldConfiguration?.fields && Array.isArray(room.fieldConfiguration.fields)) {
         room.fieldConfiguration.fields.forEach(field => {
-          const value = getMemberFieldValue(member, field.name) || 'N/A'
-          row.push(value)
+          if (field && field.name) {
+            headers.push(field.name.charAt(0).toUpperCase() + field.name.slice(1))
+          }
         })
+      } else {
+        // Fallback headers if no field configuration
+        headers.push('Name', 'Email')
+      }
+      headers.push('Status')
+      
+      console.log('Headers:', headers)
+      
+      const tableData = []
+      
+      membersWithAttendance.forEach((member, index) => {
+        if (!member) return
+        
+        const row = [(index + 1).toString()] // Start with S.No
+        
+        // Add data for each dynamic field
+        if (room?.fieldConfiguration?.fields && Array.isArray(room.fieldConfiguration.fields)) {
+          room.fieldConfiguration.fields.forEach(field => {
+            if (field && field.name) {
+              const value = getMemberFieldValue(member, field.name) || 'N/A'
+              row.push(String(value))
+            }
+          })
+        } else {
+          // Fallback data if no field configuration
+          row.push(getMemberFieldValue(member, 'name') || 'N/A')
+          row.push(getMemberFieldValue(member, 'email') || 'N/A')
+        }
+        
+        // Add attendance status
+        const status = member.attendanceStatus || 'ABSENT'
+        row.push(status.toUpperCase())
+        
+        tableData.push(row)
+      })
+
+      console.log('Table data rows:', tableData.length)
+      console.log('Sample row:', tableData[0])
+
+      // Create dynamic column styles
+      const columnStyles = {}
+      const totalColumns = headers.length
+      const availableWidth = 175 // Increased width to use more space on right side
+      
+      // S.No column (fixed width)
+      columnStyles[0] = { halign: 'center', cellWidth: 15 }
+      
+      // Dynamic field columns (distribute remaining width)
+      const remainingWidth = availableWidth - 15 - 25 // Subtract S.No and Status width
+      const fieldCount = totalColumns - 2 // Exclude S.No and Status
+      const fieldWidth = fieldCount > 0 ? remainingWidth / fieldCount : 35
+      
+      for (let i = 1; i < totalColumns - 1; i++) {
+        columnStyles[i] = { halign: 'left', cellWidth: fieldWidth }
       }
       
-      // Add attendance status
-      row.push(member.attendanceStatus?.toUpperCase() || 'ABSENT')
-      
-      tableData.push(row)
-    })
+      // Status column (slightly increased width)
+      columnStyles[totalColumns - 1] = { halign: 'center', cellWidth: 25 }
 
-    // Create dynamic column styles
-    const columnStyles = {}
-    const totalColumns = headers.length
-    const availableWidth = 175 // Increased width to use more space on right side
-    
-    // S.No column (fixed width)
-    columnStyles[0] = { halign: 'center', cellWidth: 15 }
-    
-    // Dynamic field columns (distribute remaining width)
-    const remainingWidth = availableWidth - 15 - 25 // Subtract S.No and Status width
-    const fieldCount = totalColumns - 2 // Exclude S.No and Status
-    const fieldWidth = fieldCount > 0 ? remainingWidth / fieldCount : 35
-    
-    for (let i = 1; i < totalColumns - 1; i++) {
-      columnStyles[i] = { halign: 'left', cellWidth: fieldWidth }
-    }
-    
-    // Status column (slightly increased width)
-    columnStyles[totalColumns - 1] = { halign: 'center', cellWidth: 25 }
-
-    // Use autoTable for clean Excel-like table
-    autoTable(doc, {
-      head: [headers],
-      body: tableData,
-      startY: currentY,
-      margin: { left: margin, right: 10 }, // Reduced right margin to allow more table width
-      styles: {
-        fontSize: 9,
-        cellPadding: 3,
-        overflow: 'linebreak',
-        halign: 'left'
-      },
-      headStyles: {
-        fillColor: [240, 240, 240],
-        textColor: [0, 0, 0],
-        fontStyle: 'bold',
-        halign: 'center'
-      },
-      bodyStyles: {
-        fillColor: [255, 255, 255],
-        textColor: [0, 0, 0]
-      },
-      alternateRowStyles: {
-        fillColor: [250, 250, 250]
-      },
-      columnStyles: columnStyles,
-      didParseCell: function(data) {
-        // Color status cells (last column)
-        if (data.column.index === totalColumns - 1 && data.section === 'body') {
-          const status = data.cell.text[0]
-          if (status === 'PRESENT') {
-            data.cell.styles.textColor = [0, 128, 0] // Green
-          } else if (status === 'ABSENT') {
-            data.cell.styles.textColor = [255, 0, 0] // Red
-          } else if (status === 'LATE') {
-            data.cell.styles.textColor = [255, 165, 0] // Orange
+      // Use autoTable for clean Excel-like table
+      autoTable(doc, {
+        head: [headers],
+        body: tableData,
+        startY: currentY,
+        margin: { left: margin, right: 10 }, // Reduced right margin to allow more table width
+        styles: {
+          fontSize: 9,
+          cellPadding: 3,
+          overflow: 'linebreak',
+          halign: 'left'
+        },
+        headStyles: {
+          fillColor: [240, 240, 240],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        bodyStyles: {
+          fillColor: [255, 255, 255],
+          textColor: [0, 0, 0]
+        },
+        alternateRowStyles: {
+          fillColor: [250, 250, 250]
+        },
+        columnStyles: columnStyles,
+        didParseCell: function(data) {
+          // Color status cells (last column)
+          if (data.column.index === totalColumns - 1 && data.section === 'body') {
+            const status = data.cell.text[0]
+            if (status === 'PRESENT') {
+              data.cell.styles.textColor = [0, 128, 0] // Green
+            } else if (status === 'ABSENT') {
+              data.cell.styles.textColor = [255, 0, 0] // Red
+            } else if (status === 'LATE') {
+              data.cell.styles.textColor = [255, 165, 0] // Orange
+            }
           }
         }
-      }
-    })
+      })
 
-    // Save the PDF
-    const fileName = `${session.title}_attendance_${new Date().toISOString().split('T')[0]}.pdf`
-    doc.save(fileName)
-  }, [membersWithAttendance, room, session.title])
+      // Save the PDF
+      const fileName = `${session?.title || 'attendance'}_${new Date().toISOString().split('T')[0]}.pdf`
+      console.log('Saving PDF as:', fileName)
+      doc.save(fileName)
+      
+      console.log('PDF export completed successfully')
+    } catch (error) {
+      console.error('PDF export error:', error)
+      alert('Failed to export PDF. Please check the console for details.')
+    }
+  }, [membersWithAttendance, room, session])
 
   // Filter members based on search and attendance status
   const filteredMembers = membersWithAttendance.filter(member => {
