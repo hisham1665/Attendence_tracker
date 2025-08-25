@@ -16,6 +16,19 @@ if %errorlevel% neq 0 (
 echo ✅ Frontend build successful!
 cd ..
 
+REM Step 1.5: Install Backend Dependencies
+echo.
+echo 📦 Step 1.5: Installing Backend Dependencies...
+cd backend
+call npm install
+if %errorlevel% neq 0 (
+    echo ❌ Backend dependency installation failed!
+    pause
+    exit /b 1
+)
+echo ✅ Backend dependencies installed!
+cd ..
+
 REM Step 2: Build Docker Image
 echo.
 echo 🐳 Step 2: Building Docker Image...
