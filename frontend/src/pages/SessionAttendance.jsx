@@ -78,7 +78,34 @@ const SessionAttendance = ({ session: sessionProp, room: roomProp, onBack, onSet
   useEffect(() => {
     setSession(sessionProp)
     setRoom(roomProp)
+    
+    // If room data is incomplete (missing title/name), try to refetch it
+    if (roomProp && roomProp._id && (!roomProp.title && !roomProp.name)) {
+      console.log('Room data incomplete, fetching full room data...')
+      fetchRoomData(roomProp._id)
+    }
   }, [sessionProp, roomProp])
+
+  // Fetch complete room data if needed
+  const fetchRoomData = async (roomId) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/rooms/${roomId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const roomData = await response.json()
+        console.log('Fetched complete room data:', roomData)
+        setRoom(roomData)
+      }
+    } catch (error) {
+      console.error('Error fetching room data:', error)
+    }
+  }
 
   // Helper function to get field value from member
   const getMemberFieldValue = (member, fieldName) => {
@@ -577,7 +604,28 @@ const SessionAttendance = ({ session: sessionProp, room: roomProp, onBack, onSet
 
       doc.setFontSize(12)
       doc.setFont('helvetica', 'normal')
-      doc.text(`Room: ${room?.title || 'Unknown Room'}`, margin, currentY)
+      
+      // Better room name detection
+      let roomName = 'Unknown Room'
+      if (room) {
+        // Try different possible room name properties
+        roomName = room.title || room.name || room.roomName || room.roomTitle || room.displayName
+        
+        // If still no name found, try to construct from other data
+        if (!roomName) {
+          if (room._id) {
+            roomName = `Room ${room._id.slice(-6)}` // Use last 6 chars of ID
+          } else if (room.id) {
+            roomName = `Room ${room.id.slice(-6)}`
+          } else {
+            roomName = 'Unnamed Room'
+          }
+        }
+      }
+      console.log('Room object for PDF:', room)
+      console.log('Room name determined:', roomName)
+      
+      doc.text(`Room: ${roomName}`, margin, currentY)
       currentY += 6
       doc.text(`Session: ${session?.title || 'Unknown Session'}`, margin, currentY)
       currentY += 6
